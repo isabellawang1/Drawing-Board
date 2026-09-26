@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drawing Board</title>
+  <link rel="icon" href="data:,">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      font: 14px system-ui, sans-serif;
+      color: #252525;
+      background: #fff;
+      color-scheme: light;
+    }
+    aside {
+      width: 184px;
+      flex-shrink: 0;
+      padding: 24px 0;
+      background: #000;
+      color: #fff;
+    }
+    h1 { margin: 0 20px 28px; font-size: 15px; font-weight: 600; }
+    fieldset { margin: 0; padding: 0; border: 0; }
+    legend { margin: 0 20px 10px; color: #999; font-size: 12px; }
+    label { display: block; position: relative; cursor: pointer; }
+    label + label { border-top: 1px solid #333; }
+    input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .tool, button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 54px;
+      padding: 16px 20px;
+      border: 0;
+      border-radius: 0;
+      font: inherit;
+      color: #bbb;
+      background: transparent;
+      text-align: left;
+    }
+    label:hover .tool, button:hover { color: #fff; }
+    input:checked + .tool { color: #fff; font-weight: 600; }
+    input:focus-visible + .tool, button:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+    svg { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    button { cursor: pointer; border-top: 1px solid #333; }
+    main { flex: 1; min-width: 0; }
+    @media (max-width: 480px) {
+      aside { width: 148px; padding: 20px 0; }
+      h1 { margin-left: 16px; font-size: 14px; }
+      legend { margin-left: 16px; }
+      .tool, button { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <aside aria-label="Drawing tools">
+    <h1>Your very own drawing board! </h1>
+    <fieldset>
+      <legend>Tools</legend>
+      <label>
+        <input type="radio" name="tool" value="marker" checked>
+        <span class="tool">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-9 9H5v-6Z"/><path d="m12 6 6 6M5 19l-2 2h6"/></svg>
+          Marker
+        </span>
+      </label>
+      <label>
+        <input type="radio" name="tool" value="eraser">
+        <span class="tool">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-10 10H6l-4-4Z"/><path d="m8 10 7 7M11 20h10"/></svg>
+          Eraser
+        </span>
+      </label>
+    </fieldset>
+    <button type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
+      Clear All
+    </button>
+  </aside>
+  <main aria-label="Blank drawing area"></main>
+</body>
+</html>
