@@ -6,9 +6,12 @@ function start() {
   let pointer = null;
   let lastPoint = null;
   let erasing = false;
+  let color = "#000000";
 
-  function paint(x1, y1, x2, y2, width, erase) {
+  function paint(x1, y1, x2, y2, width, erase, strokeColor) {
     context.globalCompositeOperation = erase ? "destination-out" : "source-over";
+    context.strokeStyle = strokeColor;
+    context.fillStyle = strokeColor;
     context.lineWidth = width;
     context.lineCap = "round";
     context.beginPath();
@@ -31,7 +34,7 @@ function start() {
   }
 
   function drawTo(point) {
-    const command = [...lastPoint, ...point, erasing ? 20 : 5, erasing];
+    const command = [...lastPoint, ...point, erasing ? 20 : 5, erasing, color];
     commands.push(command);
     paint(...command);
     lastPoint = point;
@@ -55,6 +58,7 @@ function start() {
     pointer = event.pointerId;
     canvas.setPointerCapture(pointer);
     erasing = document.querySelector('input[value="eraser"]').checked;
+    color = document.querySelector('input[name="color"]:checked').value;
     lastPoint = point(event);
     drawTo(lastPoint); // A click makes a dot, even without dragging.
   };

@@ -1,6 +1,7 @@
 # Drawing Board
 
 Select **Marker** to draw, **Eraser** to erase, or **Clear All** to start over.
+Choose black, red, orange, green, blue, or purple from the sidebar color palette.
 Use a mouse, finger, or stylus. Drawings stay in memory until you refresh or close
 the page.
 
