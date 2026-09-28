@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=toolbox-2" defer></script>
+  <script src="app.js?v=history-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -47,7 +47,8 @@
       background: transparent;
       text-align: left;
     }
-    label:hover .tool, button:hover { color: #fff; }
+    label:hover .tool, button:hover:enabled { color: #fff; }
+    button:disabled { color: #666; cursor: default; }
     input:checked + .tool { color: #fff; font-weight: 600; }
     input:focus-visible + .tool, button:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
     svg { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -101,6 +102,14 @@
         </span>
       </label>
     </fieldset>
+    <button id="undo" type="button" title="Undo (⌘/Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>
+      Undo
+    </button>
+    <button id="redo" type="button" title="Redo (⌘/Ctrl+Shift+Z)" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -2)"/></svg>
+      Redo
+    </button>
     <button id="clear" type="button" disabled>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
       Clear All

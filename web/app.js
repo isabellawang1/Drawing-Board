@@ -6,12 +6,28 @@ function start() {
   const paperContext = paper.getContext('2d');
   const layer = document.createElement('canvas'); // One stroke, before applying opacity.
   const layerContext = layer.getContext('2d');
-  const strokes = []; // Used to restore the drawing after resizing.
+  let strokes = []; // Used to restore the drawing after resizing or undoing.
+  const undoHistory = [];
+  const redoHistory = [];
+  const undoButton = document.querySelector('#undo');
+  const redoButton = document.querySelector('#redo');
+  const clearButton = document.querySelector('#clear');
   let activeStroke = null;
   let pointer = null;
   const widths = { marker: 5, highlighter: 20, eraser: 20 };
   const widthInput = document.querySelector('#brush-width');
   const widthValue = document.querySelector('#width-value');
+
+  function updateHistoryButtons() {
+    undoButton.disabled = undoHistory.length === 0 && !activeStroke;
+    redoButton.disabled = redoHistory.length === 0 || !!activeStroke;
+    clearButton.disabled = strokes.length === 0 && !activeStroke;
+  }
+
+  function recordAction(action) {
+    undoHistory.push(action);
+    redoHistory.length = 0;
+  }
   function selectedTool() {
     return document.querySelector('input[name="tool"]:checked').value;
   }
@@ -74,6 +90,11 @@ function start() {
       surface.height = Math.round(canvas.clientHeight * scale);
     }
     layerContext.setTransform(scale, 0, 0, scale, 0, 0);
+    rebuildPaper();
+  }
+
+  function rebuildPaper() {
+    paperContext.clearRect(0, 0, paper.width, paper.height);
     for (const stroke of strokes) paintStroke(paperContext, stroke);
     render();
   }
@@ -89,6 +110,7 @@ function start() {
   function finish() {
     if (activeStroke) {
       strokes.push(activeStroke);
+      recordAction({ type: 'stroke', stroke: activeStroke });
       paintStroke(paperContext, activeStroke);
       activeStroke = null;
       render();
@@ -96,6 +118,7 @@ function start() {
     const previous = pointer;
     pointer = null;
     if (previous !== null && canvas.hasPointerCapture(previous)) canvas.releasePointerCapture(previous);
+    updateHistoryButtons();
   }
 
   canvas.onpointerdown = (event) => {
@@ -107,6 +130,7 @@ function start() {
     activeStroke = { type, width: widths[type], color: document.querySelector('input[name="color"]:checked').value, points: [] };
     appendPoint(event);
     render();
+    updateHistoryButtons();
   };
   canvas.onpointermove = (event) => {
     if (event.pointerId !== pointer) return;
@@ -123,20 +147,52 @@ function start() {
     if (event.pointerId === pointer) finish();
   };
   window.addEventListener('blur', finish);
-  document.querySelector('#clear').onclick = () => {
-    activeStroke = null;
+  clearButton.onclick = () => {
     finish();
-    strokes.length = 0;
-    paperContext.clearRect(0, 0, paper.width, paper.height);
-    render();
+    if (strokes.length === 0) return;
+    recordAction({ type: 'clear', strokes: strokes.slice() });
+    strokes = [];
+    rebuildPaper();
+    updateHistoryButtons();
   };
+  undoButton.onclick = () => {
+    finish();
+    const action = undoHistory.pop();
+    if (!action) return;
+    if (action.type === 'stroke') strokes.pop();
+    else strokes = action.strokes.slice();
+    redoHistory.push(action);
+    rebuildPaper();
+    updateHistoryButtons();
+  };
+  redoButton.onclick = () => {
+    finish();
+    const action = redoHistory.pop();
+    if (!action) return;
+    if (action.type === 'stroke') strokes.push(action.stroke);
+    else strokes = [];
+    undoHistory.push(action);
+    rebuildPaper();
+    updateHistoryButtons();
+  };
+
+  document.addEventListener('keydown', (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey || event.target.isContentEditable ||
+        event.target.matches('textarea, select, input:not([type="radio"]):not([type="range"])')) return;
+    const key = event.key.toLowerCase();
+    if (key === 'z' || (key === 'y' && !event.metaKey)) {
+      event.preventDefault();
+      if (key === 'y' || event.shiftKey) redoButton.onclick();
+      else undoButton.onclick();
+    }
+  });
 
   new ResizeObserver(resize).observe(canvas);
   window.addEventListener('resize', resize);
   resize();
   showWidth();
   document.querySelector('fieldset').disabled = false;
-  document.querySelector('#clear').disabled = false;
+  updateHistoryButtons();
 }
 
 start();

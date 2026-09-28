@@ -6,7 +6,7 @@ the tools, then use the arrow keys to choose one.
 
 - **Marker:** a solid, round line.
 - **Highlighter:** a kinda translucent line. 
-
+Command Z and Cmd Shift Z also work. 
 Choose black, red, orange, green, blue, or purple from the sidebar color palette.
 Use the **Brush width** slider for sizes from 1–50 pixels. Each pen and the eraser
 remember their own size while the page is open.

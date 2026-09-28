@@ -6,7 +6,7 @@ In order of priority I think??
 - [x] Different marker types: highlighter alongside the standard marker.
 - [ ] Bucket tool: fill an enclosed area with the selected color.
 
-- [ ] Undo and redo, able to recover from clear all. 
+- [x] Undo and redo, able to recover from clear all.
 - [ ] Straight lines, rectangles, and circles.
 - [ ] Custom color picker for colors beyond the preset palette.
 - [ ] Zoom in & out.
