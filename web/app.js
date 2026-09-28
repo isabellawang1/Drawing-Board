@@ -7,6 +7,30 @@ function start() {
   let lastPoint = null;
   let erasing = false;
   let color = "#000000";
+  let strokeWidth = 5;
+  const widths = { marker: 5, eraser: 20 };
+  const widthInput = document.querySelector("#brush-width");
+  const widthValue = document.querySelector("#width-value");
+
+  function selectedTool() {
+    return document.querySelector('input[name="tool"]:checked').value;
+  }
+
+  function showWidth() {
+    const width = widths[selectedTool()];
+    widthInput.value = width;
+    widthInput.setAttribute("aria-valuetext", `${width} pixels`);
+    widthValue.value = `${width} px`;
+  }
+
+  widthInput.oninput = () => {
+    widths[selectedTool()] = Number(widthInput.value);
+    showWidth();
+  };
+  for (const tool of document.querySelectorAll('input[name="tool"]')) {
+    tool.onchange = showWidth;
+  }
+  showWidth();
 
   function paint(x1, y1, x2, y2, width, erase, strokeColor) {
     context.globalCompositeOperation = erase ? "destination-out" : "source-over";
@@ -34,7 +58,7 @@ function start() {
   }
 
   function drawTo(point) {
-    const command = [...lastPoint, ...point, erasing ? 20 : 5, erasing, color];
+    const command = [...lastPoint, ...point, strokeWidth, erasing, color];
     commands.push(command);
     paint(...command);
     lastPoint = point;
@@ -58,6 +82,7 @@ function start() {
     pointer = event.pointerId;
     canvas.setPointerCapture(pointer);
     erasing = document.querySelector('input[value="eraser"]').checked;
+    strokeWidth = widths[selectedTool()];
     color = document.querySelector('input[name="color"]:checked').value;
     lastPoint = point(event);
     drawTo(lastPoint); // A click makes a dot, even without dragging.
