@@ -1,6 +1,7 @@
 # Drawing Board
 
 Select **Marker**, **Highlighter**, or **Eraser** in the bottom toolbar.
+Select **Text** to be able to type somethinng in. 
 Click **Shapes** to choose Line, Rectangle, or Circle from the menu above it.
 Undo, Redo, and Clear All are in the top bar.
 
@@ -39,7 +40,7 @@ Visit http://localhost:8080. If the server is already running, just refresh.
 - `web/app.js`: marker drawing, erasing, and clearing in plain JavaScript.
   Marker starts at 5 pixels, highlighter at 20, and eraser at 20.
   Lines, rectangles, and circles start at 5 pixels.
-- `web/index.html`: the sidebar and page styling.
+- `web/index.html`: the toolbar, text box, and page styling.
 
 After editing either file, refresh the page. No compiler, dependencies, or build
 step is needed.

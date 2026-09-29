@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=bottom-toolbar-1" defer></script>
+  <script src="app.js?v=text-tool-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
@@ -20,6 +20,15 @@
     svg { width: 19px; height: 19px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
     main { flex: 1; min-height: 0; min-width: 0; position: relative; }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+    canvas[data-tool="text"] { cursor: text; }
+    .text-editor { position: absolute; z-index: 2; display: flex; flex-direction: column; background: #fff; border: 1px dashed #777; box-shadow: 0 2px 12px #0001; }
+    .text-editor[hidden] { display: none; }
+    #text-input { flex: 1; min-height: 0; width: 100%; padding: 8px; border: 0; outline: 0; resize: none; background: transparent; font: 24px/1.3 system-ui, sans-serif; }
+    .text-editor:focus-within { border-color: #252525; }
+    .text-actions { display: flex; justify-content: flex-end; gap: 4px; padding: 4px; border-top: 1px solid #eee; }
+    .text-actions button { padding: 6px 10px; min-height: 32px; font-size: 12px; }
+    #text-done { color: #fff; background: #252525; }
+    .text-actions button:focus-visible { outline: 2px solid #555; outline-offset: 2px; }
     .toolbox { flex-shrink: 0; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 20px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); color: #fff; background: #000; }
     fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
     .sr-only, input[type="radio"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -53,7 +62,7 @@
     input:focus-visible + .tool-button, input:focus-visible + .shape-option, summary:focus-visible, input[type="range"]:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
     input:focus-visible + .swatch { outline: 2px dashed #fff; outline-offset: 4px; }
     .history button:focus-visible { outline: 2px solid #252525; outline-offset: -2px; }
-    @media (max-width: 760px) {
+    @media (max-width: 880px) {
       .toolbox { flex-direction: column; gap: 8px; padding-top: 4px; }
       .settings { border-left: 0; border-top: 1px solid #333; padding: 8px 0 0; gap: 20px; }
       .tool-button { min-height: 58px; }
@@ -66,7 +75,7 @@
       .history button { width: 36px; justify-content: center; padding: 8px; }
       .toolbox { padding-left: 8px; padding-right: 8px; }
       .tool-options { gap: 0; }
-      .tool-button { min-width: 70px; }
+      .tool-button { min-width: 56px; padding: 8px 4px; font-size: 11px; }
       .settings { gap: 16px; }
       .palette label { width: 26px; }
       .brush-width { width: 112px; }
@@ -92,7 +101,15 @@
     </div>
   </header>
   <main aria-label="Drawing area">
-    <canvas aria-label="Drag to draw with the selected tool."></canvas>
+    <canvas aria-label="Drag to draw, or select Text and click to type." tabindex="0"></canvas>
+    <div id="text-editor" class="text-editor" hidden>
+      <textarea id="text-input" aria-label="Text to place on the drawing" aria-describedby="text-help" placeholder="Type here…" wrap="off" spellcheck="false"></textarea>
+      <span id="text-help" class="sr-only">Enter adds a new line. Command or Control Enter places the text. Escape cancels.</span>
+      <div class="text-actions">
+        <button id="text-cancel" type="button">Cancel</button>
+        <button id="text-done" type="button">Done</button>
+      </div>
+    </div>
   </main>
   <footer class="toolbox" aria-label="Drawing controls">
     <fieldset id="tools" disabled>
@@ -117,6 +134,13 @@
         <span class="tool-button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-10 10H6l-4-4Z"/><path d="m8 10 7 7M11 20h10"/></svg>
           Eraser
+        </span>
+      </label>
+      <label class="tool-control" title="Click the canvas to add text">
+        <input type="radio" name="tool" value="text">
+        <span class="tool-button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6V3h16v3M12 3v18M8 21h8"/></svg>
+          Text
         </span>
       </label>
         <details id="shape-picker" class="shape-picker">
@@ -182,7 +206,7 @@
       </fieldset>
       <div class="brush-width">
         <div class="width-heading">
-          <label for="brush-width">Width</label>
+          <label id="width-label" for="brush-width">Width</label>
           <output id="width-value" for="brush-width">5 px</output>
         </div>
         <input id="brush-width" type="range" min="1" max="50" step="1" value="5" aria-valuetext="5 pixels">
