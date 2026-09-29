@@ -5,138 +5,154 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=shapes-1" defer></script>
+  <script src="app.js?v=bottom-toolbar-1" defer></script>
   <style>
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
-      display: flex;
-      font: 14px system-ui, sans-serif;
-      color: #252525;
-      background: #fff;
-      color-scheme: light;
-    }
-    aside {
-      width: 184px;
-      flex-shrink: 0;
-      padding: 24px 0;
-      background: #000;
-      color: #fff;
-      overflow-y: auto;
-    }
-    h1 { margin: 0 20px 28px; font-size: 15px; font-weight: 600; }
-    fieldset { margin: 0; padding: 0; border: 0; }
-    legend { margin: 0 20px 10px; color: #999; font-size: 12px; }
-    label { display: block; position: relative; cursor: pointer; }
-    label + label { border-top: 1px solid #333; }
-    input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
-    .tool, button {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      width: 100%;
-      min-height: 54px;
-      padding: 16px 20px;
-      border: 0;
-      border-radius: 0;
-      font: inherit;
-      color: #bbb;
-      background: transparent;
-      text-align: left;
-    }
-    label:hover .tool, button:hover:enabled { color: #fff; }
-    button:disabled { color: #666; cursor: default; }
-    input:checked + .tool { color: #fff; font-weight: 600; }
-    input:focus-visible + .tool, button:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
-    svg { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    button { cursor: pointer; border-top: 1px solid #333; }
-    .colors { margin-top: 24px; }
-    .palette { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 12px; }
-    .palette label { display: grid; place-items: center; min-height: 44px; border: 0; }
-    .swatch { width: 24px; height: 24px; border-radius: 50%; background: var(--color); border: 1px solid #777; }
-    input:checked + .swatch { outline: 2px solid #fff; outline-offset: 3px; }
-    input:focus-visible + .swatch { outline: 2px dashed #fff; outline-offset: 5px; }
-    .brush-width { margin: 24px 20px 0; padding-top: 20px; border-top: 1px solid #333; }
-    .width-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #999; }
-    .width-heading output { color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    input[type="range"] { display: block; width: 100%; height: 32px; margin: 8px 0 0; accent-color: #fff; color-scheme: dark; cursor: pointer; }
-    input[type="range"]:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-    main { flex: 1; min-width: 0; position: relative; }
+    body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 0 20px; border-bottom: 1px solid #eee; }
+    h1 { margin: 0; font-size: 14px; font-weight: 500; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    button, summary { font: inherit; color: inherit; cursor: pointer; }
+    button { border: 0; background: transparent; }
+    .history { display: flex; gap: 4px; flex-shrink: 0; }
+    .history button { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 8px 10px; font-size: 12px; }
+    .history button:hover:enabled { background: #f4f4f4; }
+    button:disabled { color: #bbb; cursor: default; }
+    svg { width: 19px; height: 19px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    main { flex: 1; min-height: 0; min-width: 0; position: relative; }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+    .toolbox { flex-shrink: 0; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 20px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); color: #fff; background: #000; }
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+    .sr-only, input[type="radio"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .tool-options { display: flex; align-items: center; gap: 4px; }
+    label { cursor: pointer; }
+    .tool-control { position: relative; display: block; }
+    .tool-button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-width: 72px; min-height: 64px; padding: 8px; border-bottom: 2px solid transparent; color: #aaa; font-size: 12px; }
+    .tool-control:hover .tool-button, summary:hover { color: #fff; }
+    input:checked + .tool-button, summary[data-active="true"] { color: #fff; border-bottom-color: #fff; }
+    .shape-picker { position: relative; }
+    summary { list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    .shape-caption { display: flex; align-items: center; gap: 5px; }
+    .shape-caption svg { width: 10px; height: 10px; }
+    details[open] .shape-caption svg { transform: rotate(180deg); }
+    .shape-options { position: absolute; right: 0; bottom: calc(100% + 12px); width: 180px; max-height: 45dvh; overflow-y: auto; background: #000; border: 1px solid #444; box-shadow: 0 4px 20px #0002; }
+    .shape-options label { display: block; position: relative; }
+    .shape-options label + label { border-top: 1px solid #333; }
+    .shape-option { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px 16px; color: #bbb; }
+    .shape-options label:hover .shape-option, input:checked + .shape-option { color: #fff; }
+    input:checked + .shape-option::after { content: '✓'; margin-left: auto; }
+    .settings { display: flex; align-items: center; gap: 20px; border-left: 1px solid #333; padding-left: 20px; }
+    .palette { display: flex; }
+    .palette label { position: relative; display: grid; place-items: center; width: 30px; min-height: 40px; }
+    .swatch { width: 18px; height: 18px; border-radius: 50%; background: var(--color); border: 1px solid #777; }
+    input:checked + .swatch { outline: 2px solid #fff; outline-offset: 3px; }
+    .brush-width { width: 136px; }
+    .width-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #aaa; }
+    .width-heading output { color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; height: 28px; margin: 4px 0 0; accent-color: #fff; color-scheme: dark; cursor: pointer; }
+    input:focus-visible + .tool-button, input:focus-visible + .shape-option, summary:focus-visible, input[type="range"]:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+    input:focus-visible + .swatch { outline: 2px dashed #fff; outline-offset: 4px; }
+    .history button:focus-visible { outline: 2px solid #252525; outline-offset: -2px; }
+    @media (max-width: 760px) {
+      .toolbox { flex-direction: column; gap: 8px; padding-top: 4px; }
+      .settings { border-left: 0; border-top: 1px solid #333; padding: 8px 0 0; gap: 20px; }
+      .tool-button { min-height: 58px; }
+    }
     @media (max-width: 480px) {
-      aside { width: 148px; padding: 20px 0; }
-      h1 { margin-left: 16px; font-size: 14px; }
-      legend { margin-left: 16px; }
-      .tool, button { padding-left: 16px; padding-right: 16px; }
-      .brush-width { margin-left: 16px; margin-right: 16px; }
+      .topbar { padding: 0 12px; min-height: 48px; gap: 8px; }
+      h1 { font-size: 12px; }
+      .action-label { display: none; }
+      .history { gap: 0; }
+      .history button { width: 36px; justify-content: center; padding: 8px; }
+      .toolbox { padding-left: 8px; padding-right: 8px; }
+      .tool-options { gap: 0; }
+      .tool-button { min-width: 70px; }
+      .settings { gap: 16px; }
+      .palette label { width: 26px; }
+      .brush-width { width: 112px; }
     }
   </style>
 </head>
 <body>
-  <aside aria-label="Drawing tools">
-    <h1>Your very own drawing board! </h1>
-    <fieldset disabled>
-      <legend>Tools</legend>
-      <label>
+  <header class="topbar">
+    <h1 title="Your very own drawing board!">Your very own drawing board!</h1>
+    <div class="history" role="group" aria-label="Drawing history">
+    <button id="undo" aria-label="Undo" type="button" title="Undo (⌘/Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>
+      <span class="action-label">Undo</span>
+    </button>
+    <button id="redo" aria-label="Redo" type="button" title="Redo (⌘/Ctrl+Shift+Z)" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -2)"/></svg>
+      <span class="action-label">Redo</span>
+    </button>
+    <button id="clear" aria-label="Clear All" type="button" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
+      <span class="action-label">Clear All</span>
+    </button>
+    </div>
+  </header>
+  <main aria-label="Drawing area">
+    <canvas aria-label="Drag to draw with the selected tool."></canvas>
+  </main>
+  <footer class="toolbox" aria-label="Drawing controls">
+    <fieldset id="tools" disabled>
+      <legend class="sr-only">Drawing tools</legend>
+      <div class="tool-options">
+      <label class="tool-control">
         <input type="radio" name="tool" value="marker" checked>
-        <span class="tool">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-9 9H5v-6Z"/><path d="m12 6 6 6M5 19l-2 2h6"/></svg>
+        <span class="tool-button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(35 12 12)"><rect x="8" y="2" width="8" height="14" rx="2"/><path d="M8 6h8M10 16v3h4v-3"/><path d="m10 19 2 3 2-3Z" fill="currentColor"/></g></svg>
           Marker
         </span>
       </label>
-      <label>
+      <label class="tool-control">
         <input type="radio" name="tool" value="highlighter">
-        <span class="tool">
+        <span class="tool-button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-9 9-7-7Z"/><path d="m5 12-2 7 4 2 5-2M3 21h10"/></svg>
           Highlighter
         </span>
       </label>
-      <label>
+      <label class="tool-control">
         <input type="radio" name="tool" value="eraser">
-        <span class="tool">
+        <span class="tool-button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-10 10H6l-4-4Z"/><path d="m8 10 7 7M11 20h10"/></svg>
           Eraser
         </span>
       </label>
+        <details id="shape-picker" class="shape-picker">
+          <summary id="shape-toggle" class="tool-button" title="Choose a shape" data-active="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="11" height="11"/><circle cx="16" cy="16" r="5"/></svg>
+            <span class="shape-caption">Shapes <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m3 7 3-3 3 3"/></svg></span>
+          </summary>
+          <div id="shape-options" class="shape-options">
       <label title="Drag from the start to the end of a straight line">
         <input type="radio" name="tool" value="line">
-        <span class="tool">
+        <span class="shape-option">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 16-16"/></svg>
           Line
         </span>
       </label>
       <label title="Drag between opposite corners of a rectangle">
         <input type="radio" name="tool" value="rectangle">
-        <span class="tool">
+        <span class="shape-option">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14"/></svg>
           Rectangle
         </span>
       </label>
       <label title="Drag from the center outward to draw a circle">
         <input type="radio" name="tool" value="circle">
-        <span class="tool">
+        <span class="shape-option">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>
           Circle
         </span>
       </label>
+          </div>
+        </details>
+      </div>
     </fieldset>
-    <button id="undo" type="button" title="Undo (⌘/Ctrl+Z)" disabled>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>
-      Undo
-    </button>
-    <button id="redo" type="button" title="Redo (⌘/Ctrl+Shift+Z)" disabled>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -2)"/></svg>
-      Redo
-    </button>
-    <button id="clear" type="button" disabled>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
-      Clear All
-    </button>
-    <fieldset class="colors">
-      <legend>Color</legend>
+    <div class="settings">
+      <fieldset class="colors">
+        <legend class="sr-only">Marker color</legend>
       <div class="palette">
         <label title="Black">
           <input type="radio" name="color" value="#000000" aria-label="Black" checked>
@@ -163,17 +179,15 @@
           <span class="swatch" style="--color: #a855f7" aria-hidden="true"></span>
         </label>
       </div>
-    </fieldset>
-    <div class="brush-width">
-      <div class="width-heading">
-        <label for="brush-width">Stroke width</label>
-        <output id="width-value" for="brush-width">5 px</output>
+      </fieldset>
+      <div class="brush-width">
+        <div class="width-heading">
+          <label for="brush-width">Width</label>
+          <output id="width-value" for="brush-width">5 px</output>
+        </div>
+        <input id="brush-width" type="range" min="1" max="50" step="1" value="5" aria-valuetext="5 pixels">
       </div>
-      <input id="brush-width" type="range" min="1" max="50" step="1" value="5" aria-valuetext="5 pixels">
     </div>
-  </aside>
-  <main aria-label="Drawing area">
-    <canvas aria-label="Drag to draw with the selected tool."></canvas>
-  </main>
+  </footer>
 </body>
 </html>

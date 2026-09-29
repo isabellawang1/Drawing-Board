@@ -17,6 +17,11 @@ function start() {
   const widths = { marker: 5, highlighter: 20, eraser: 20, line: 5, rectangle: 5, circle: 5 };
   const widthInput = document.querySelector('#brush-width');
   const widthValue = document.querySelector('#width-value');
+  const shapePicker = document.querySelector('#shape-picker');
+  const shapeToggle = document.querySelector('#shape-toggle');
+  const shapeOptions = document.querySelector('#shape-options');
+  const shapeInputs = [...shapeOptions.querySelectorAll('input[name="tool"]')];
+  let focusShapesOnOpen = false;
 
   function updateHistoryButtons() {
     undoButton.disabled = undoHistory.length === 0 && !activeStroke;
@@ -45,16 +50,68 @@ function start() {
   }
 
   function showWidth() {
-    const width = widths[selectedTool()];
+    const tool = selectedTool();
+    const width = widths[tool];
     widthInput.value = width;
     widthInput.setAttribute('aria-valuetext', `${width} pixels`);
     widthValue.value = `${width} px`;
+    shapeToggle.dataset.active = String(isShape(tool));
+    shapeToggle.title = isShape(tool) ? `Shapes: ${tool}` : 'Choose a shape';
+    shapeToggle.setAttribute('aria-label', isShape(tool) ? `Shapes: ${tool}` : 'Shapes');
   }
   widthInput.oninput = () => {
     widths[selectedTool()] = Number(widthInput.value);
     showWidth();
   };
   for (const tool of document.querySelectorAll('input[name="tool"]')) tool.onchange = showWidth;
+
+  function closeShapes(restoreFocus = false) {
+    shapePicker.open = false;
+    if (restoreFocus || shapeOptions.contains(document.activeElement)) shapeToggle.focus();
+  }
+
+  function focusShape() {
+    (shapeInputs.find(input => input.checked) || shapeInputs[0]).focus({ preventScroll: true });
+  }
+
+  shapeToggle.onpointerdown = () => { focusShapesOnOpen = false; };
+  shapeToggle.onkeydown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') focusShapesOnOpen = true;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      shapePicker.open = true;
+      focusShape();
+    }
+  };
+  shapePicker.ontoggle = () => {
+    if (shapePicker.open && focusShapesOnOpen) focusShape();
+    focusShapesOnOpen = false;
+  };
+  shapePicker.onkeydown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeShapes(true);
+    } else if (shapeInputs.includes(event.target) && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      event.target.checked = true;
+      showWidth();
+      closeShapes(true);
+    }
+  };
+  for (const input of document.querySelectorAll('input[name="tool"]')) {
+    input.onclick = (event) => {
+      // Arrow-key selection stays open; pointer selection finishes the choice.
+      if (shapePicker.open && (!isShape(input.value) || event.detail > 0)) {
+        closeShapes(isShape(input.value));
+      }
+    };
+  }
+  document.addEventListener('pointerdown', (event) => {
+    if (shapePicker.open && !shapePicker.contains(event.target)) closeShapes();
+  });
+  shapePicker.onfocusout = (event) => {
+    if (!shapePicker.contains(event.relatedTarget)) closeShapes();
+  };
 
   function dot(point) {
     layerContext.beginPath();
@@ -241,7 +298,7 @@ function start() {
   window.addEventListener('resize', resize);
   resize();
   showWidth();
-  document.querySelector('fieldset').disabled = false;
+  document.querySelector('#tools').disabled = false;
   updateHistoryButtons();
 }
 

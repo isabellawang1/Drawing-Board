@@ -1,8 +1,12 @@
 # Drawing Board
 
-Select **Marker**, **Highlighter**, or **Eraser** directly in the
-sidebar. Use **Clear All** to start over. You can also use the keyboard: Tab to
-the tools, then use the arrow keys to choose one.
+Select **Marker**, **Highlighter**, or **Eraser** in the bottom toolbar.
+Click **Shapes** to choose Line, Rectangle, or Circle from the menu above it.
+Undo, Redo, and Clear All are in the top bar.
+
+With a keyboard, Tab to a tool and use the arrow keys to switch. Focus Shapes
+and press Enter to open its menu, use arrows to choose a shape, then Enter to
+confirm. Escape closes the menu.
 
 - **Marker:** a solid, round line.
 - **Highlighter:** a kinda translucent line. 
@@ -14,8 +18,8 @@ Shapes preview while you drag. Release to finish, or press Escape to cancel.
 They use your selected color and width, and work with Undo, Redo, and Clear All.
 
 Command Z and Cmd Shift Z also work. 
-Choose black, red, orange, green, blue, or purple from the sidebar color palette.
-Use the **Stroke width** slider for sizes from 1–50 pixels. Each drawing tool
+Choose black, red, orange, green, blue, or purple from the bottom color palette.
+Use the **Width** slider for sizes from 1–50 pixels. Each drawing tool
 remember their own size while the page is open.
 Use a mouse, finger, or stylus. Drawings stay in memory until you refresh or close
 the page.
