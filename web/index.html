@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=history-1" defer></script>
+  <script src="app.js?v=shapes-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -101,6 +101,27 @@
           Eraser
         </span>
       </label>
+      <label title="Drag from the start to the end of a straight line">
+        <input type="radio" name="tool" value="line">
+        <span class="tool">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 16-16"/></svg>
+          Line
+        </span>
+      </label>
+      <label title="Drag between opposite corners of a rectangle">
+        <input type="radio" name="tool" value="rectangle">
+        <span class="tool">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14"/></svg>
+          Rectangle
+        </span>
+      </label>
+      <label title="Drag from the center outward to draw a circle">
+        <input type="radio" name="tool" value="circle">
+        <span class="tool">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>
+          Circle
+        </span>
+      </label>
     </fieldset>
     <button id="undo" type="button" title="Undo (⌘/Ctrl+Z)" disabled>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>
@@ -145,7 +166,7 @@
     </fieldset>
     <div class="brush-width">
       <div class="width-heading">
-        <label for="brush-width">Brush width</label>
+        <label for="brush-width">Stroke width</label>
         <output id="width-value" for="brush-width">5 px</output>
       </div>
       <input id="brush-width" type="range" min="1" max="50" step="1" value="5" aria-valuetext="5 pixels">

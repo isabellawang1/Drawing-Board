@@ -14,7 +14,7 @@ function start() {
   const clearButton = document.querySelector('#clear');
   let activeStroke = null;
   let pointer = null;
-  const widths = { marker: 5, highlighter: 20, eraser: 20 };
+  const widths = { marker: 5, highlighter: 20, eraser: 20, line: 5, rectangle: 5, circle: 5 };
   const widthInput = document.querySelector('#brush-width');
   const widthValue = document.querySelector('#width-value');
 
@@ -30,6 +30,18 @@ function start() {
   }
   function selectedTool() {
     return document.querySelector('input[name="tool"]:checked').value;
+  }
+
+  function isShape(type) {
+    return ['line', 'rectangle', 'circle'].includes(type);
+  }
+
+  function hasShapeSize(stroke) {
+    if (stroke.points.length < 2) return false;
+    const [first, last] = stroke.points;
+    return stroke.type === 'rectangle'
+      ? first.x !== last.x && first.y !== last.y
+      : first.x !== last.x || first.y !== last.y;
   }
 
   function showWidth() {
@@ -56,7 +68,24 @@ function start() {
     layerContext.fillStyle = layerContext.strokeStyle = stroke.color;
     const points = stroke.points;
     const first = points[0];
-    if (points.length === 1) {
+    if (isShape(stroke.type)) {
+      if (!hasShapeSize(stroke)) return;
+      const last = points[1];
+      layerContext.lineWidth = stroke.width;
+      layerContext.lineCap = 'round';
+      layerContext.lineJoin = 'miter';
+      layerContext.beginPath();
+      if (stroke.type === 'line') {
+        layerContext.moveTo(first.x, first.y);
+        layerContext.lineTo(last.x, last.y);
+      } else if (stroke.type === 'rectangle') {
+        layerContext.rect(Math.min(first.x, last.x), Math.min(first.y, last.y),
+          Math.abs(last.x - first.x), Math.abs(last.y - first.y));
+      } else {
+        layerContext.arc(first.x, first.y, Math.hypot(last.x - first.x, last.y - first.y), 0, Math.PI * 2);
+      }
+      layerContext.stroke();
+    } else if (points.length === 1) {
       if (stroke.type === 'highlighter') {
         layerContext.fillRect(first.x - stroke.width / 2, first.y - stroke.width / 2, stroke.width, stroke.width);
       } else dot(first);
@@ -104,14 +133,19 @@ function start() {
     const previous = activeStroke.points.at(-1);
     const x = event.clientX - bounds.left, y = event.clientY - bounds.top;
     if (previous && x === previous.x && y === previous.y) return;
-    activeStroke.points.push({ x, y, width: activeStroke.width });
+    const point = { x, y, width: activeStroke.width };
+    // Shapes keep their starting point and replace the preview endpoint as you drag.
+    if (isShape(activeStroke.type) && activeStroke.points.length > 0) activeStroke.points[1] = point;
+    else activeStroke.points.push(point);
   }
 
   function finish() {
     if (activeStroke) {
-      strokes.push(activeStroke);
-      recordAction({ type: 'stroke', stroke: activeStroke });
-      paintStroke(paperContext, activeStroke);
+      if (!isShape(activeStroke.type) || hasShapeSize(activeStroke)) {
+        strokes.push(activeStroke);
+        recordAction({ type: 'stroke', stroke: activeStroke });
+        paintStroke(paperContext, activeStroke);
+      }
       activeStroke = null;
       render();
     }
@@ -119,6 +153,12 @@ function start() {
     pointer = null;
     if (previous !== null && canvas.hasPointerCapture(previous)) canvas.releasePointerCapture(previous);
     updateHistoryButtons();
+  }
+
+  function cancelShape() {
+    activeStroke = null;
+    finish();
+    render();
   }
 
   canvas.onpointerdown = (event) => {
@@ -144,9 +184,14 @@ function start() {
     finish();
   };
   canvas.onpointercancel = canvas.onlostpointercapture = (event) => {
-    if (event.pointerId === pointer) finish();
+    if (event.pointerId !== pointer) return;
+    if (activeStroke && isShape(activeStroke.type)) cancelShape();
+    else finish();
   };
-  window.addEventListener('blur', finish);
+  window.addEventListener('blur', () => {
+    if (activeStroke && isShape(activeStroke.type)) cancelShape();
+    else finish();
+  });
   clearButton.onclick = () => {
     finish();
     if (strokes.length === 0) return;
@@ -177,6 +222,11 @@ function start() {
   };
 
   document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && activeStroke && isShape(activeStroke.type)) {
+      event.preventDefault();
+      cancelShape();
+      return;
+    }
     if (!(event.metaKey || event.ctrlKey) || event.altKey || event.target.isContentEditable ||
         event.target.matches('textarea, select, input:not([type="radio"]):not([type="range"])')) return;
     const key = event.key.toLowerCase();
