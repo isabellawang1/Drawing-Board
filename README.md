@@ -2,6 +2,12 @@
 
 Select **Marker**, **Highlighter**, or **Eraser** in the bottom toolbar.
 Select **Text** to be able to type somethinng in. 
+Click **Math** to insert math symbols 
+
+Math includes Σ, σ, √, π, θ, ∞, ∫, ±, ², ³, ≤, and ≥. These are editable
+text symbols and cant calculate anything (yet). Escape cancels a symbol waiting to
+be placed.
+
 Click **Shapes** to choose Line, Rectangle, or Circle from the menu above it.
 Undo, Redo, and Clear All are in the top bar.
 

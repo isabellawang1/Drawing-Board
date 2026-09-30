@@ -26,12 +26,19 @@ function start() {
   const shapeOptions = document.querySelector('#shape-options');
   const shapeInputs = [...shapeOptions.querySelectorAll('input[name="tool"]')];
   let focusShapesOnOpen = false;
+  const mathPicker = document.querySelector('#math-picker');
+  const mathToggle = document.querySelector('#math-toggle');
+  const mathOptions = document.querySelector('#math-options');
+  const mathButtons = [...mathOptions.querySelectorAll('button[data-math]')];
+  const mathHint = document.querySelector('#math-hint');
+  let pendingMath = '';
+  let focusMathOnOpen = false;
 
   function updateHistoryButtons() {
     const pending = !!activeStroke || !!(textDraft && textInput.value.trim());
     undoButton.disabled = undoHistory.length === 0 && !pending;
     redoButton.disabled = redoHistory.length === 0 || pending;
-    clearButton.disabled = strokes.length === 0 && !pending;
+    clearButton.disabled = strokes.length === 0 && !pending && !pendingMath;
   }
 
   function recordAction(action) {
@@ -78,6 +85,7 @@ function start() {
   };
   for (const tool of document.querySelectorAll('input[name="tool"]')) {
     tool.onchange = () => {
+      clearPendingMath();
       if (selectedTool() !== 'text') finishText();
       showWidth();
     };
@@ -107,16 +115,19 @@ function start() {
     }
   };
   shapePicker.ontoggle = () => {
+    if (shapePicker.open) closeMath();
     if (shapePicker.open && focusShapesOnOpen) focusShape();
     focusShapesOnOpen = false;
   };
   shapePicker.onkeydown = (event) => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       closeShapes(true);
     } else if (shapeInputs.includes(event.target) && (event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault();
       event.target.checked = true;
+      clearPendingMath();
       finishText();
       showWidth();
       closeShapes(true);
@@ -124,6 +135,7 @@ function start() {
   };
   for (const input of document.querySelectorAll('input[name="tool"]')) {
     input.onclick = (event) => {
+      clearPendingMath();
       // Arrow-key selection stays open; pointer selection finishes the choice.
       if (shapePicker.open && (!isShape(input.value) || event.detail > 0)) {
         closeShapes(isShape(input.value));
@@ -132,10 +144,78 @@ function start() {
   }
   document.addEventListener('pointerdown', (event) => {
     if (shapePicker.open && !shapePicker.contains(event.target)) closeShapes();
+    if (mathPicker.open && !mathPicker.contains(event.target)) closeMath();
   });
   shapePicker.onfocusout = (event) => {
     if (!shapePicker.contains(event.relatedTarget)) closeShapes();
   };
+
+  function clearPendingMath() {
+    pendingMath = '';
+    mathHint.hidden = true;
+    mathToggle.dataset.active = 'false';
+    updateHistoryButtons();
+  }
+
+  function closeMath(restoreFocus = false) {
+    mathPicker.open = false;
+    if (restoreFocus || mathOptions.contains(document.activeElement)) mathToggle.focus();
+  }
+
+  mathToggle.onpointerdown = () => { focusMathOnOpen = false; };
+  mathToggle.onkeydown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') focusMathOnOpen = true;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      mathPicker.open = true;
+      mathButtons[0].focus();
+    }
+  };
+  mathPicker.ontoggle = () => {
+    if (mathPicker.open) {
+      closeShapes();
+      if (focusMathOnOpen) mathButtons[0].focus();
+    }
+    focusMathOnOpen = false;
+  };
+  mathPicker.onfocusout = (event) => {
+    if (!mathPicker.contains(event.relatedTarget)) closeMath();
+  };
+  mathPicker.onkeydown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMath(true);
+      return;
+    }
+    const index = mathButtons.indexOf(event.target);
+    const direction = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 4, ArrowUp: -4 };
+    if (index !== -1 && (event.key in direction || event.key === 'Home' || event.key === 'End')) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? mathButtons.length - 1 :
+        (index + direction[event.key] + mathButtons.length) % mathButtons.length;
+      mathButtons[next].focus();
+    }
+  };
+  for (const button of mathButtons) {
+    button.onclick = () => {
+      const symbol = button.dataset.math;
+      closeMath();
+      document.querySelector('input[value="text"]').checked = true;
+      showWidth();
+      if (textDraft) {
+        textInput.setRangeText(symbol, textInput.selectionStart, textInput.selectionEnd, 'end');
+        textInput.focus({ preventScroll: true });
+      } else {
+        pendingMath += symbol;
+        mathHint.textContent = `Click the canvas to place ${pendingMath}. Esc to cancel.`;
+        mathHint.hidden = false;
+        mathToggle.dataset.active = 'true';
+        canvas.focus({ preventScroll: true });
+      }
+      updateHistoryButtons();
+    };
+  }
 
   function dot(point) {
     layerContext.beginPath();
@@ -262,13 +342,16 @@ function start() {
 
   function beginText(x, y) {
     finishText();
+    const initialText = pendingMath;
+    clearPendingMath();
     textDraft = { x, y, size: widths.text, color: document.querySelector('input[name="color"]:checked').value };
-    textInput.value = '';
+    textInput.value = initialText;
     textInput.style.fontSize = `${textDraft.size}px`;
     textInput.style.color = textDraft.color;
     textEditor.hidden = false;
     positionTextEditor();
     textInput.focus({ preventScroll: true });
+    textInput.setSelectionRange(initialText.length, initialText.length);
     updateHistoryButtons();
   }
 
@@ -345,6 +428,7 @@ function start() {
     else finish();
   });
   clearButton.onclick = () => {
+    clearPendingMath();
     finishText();
     finish();
     if (strokes.length === 0) return;
@@ -354,6 +438,7 @@ function start() {
     updateHistoryButtons();
   };
   undoButton.onclick = () => {
+    clearPendingMath();
     finishText();
     finish();
     const action = undoHistory.pop();
@@ -365,6 +450,7 @@ function start() {
     updateHistoryButtons();
   };
   redoButton.onclick = () => {
+    clearPendingMath();
     finishText();
     finish();
     const action = redoHistory.pop();
@@ -377,6 +463,11 @@ function start() {
   };
 
   document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && pendingMath) {
+      event.preventDefault();
+      clearPendingMath();
+      return;
+    }
     if (event.key === 'Escape' && activeStroke && isShape(activeStroke.type)) {
       event.preventDefault();
       cancelShape();
