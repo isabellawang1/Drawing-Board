@@ -10,7 +10,7 @@ In order of priority I think??
 - [x] Straight lines, rectangles, and circles.
 - [x] Text boxes with adjustable size and color.
 - [x] Math dropdown with sigma and other symbols.
-- [ ] Custom color picker for colors beyond the preset palette.
+- [x] Custom color picker for colors beyond the preset palette.
 - [ ] Zoom in & out.
 - [ ] Eyedropper to pick a color from the drawing.
 

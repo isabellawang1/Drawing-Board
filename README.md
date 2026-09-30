@@ -28,6 +28,10 @@ They use your selected color and width, and work with Undo, Redo, and Clear All.
 
 Command Z and Cmd Shift Z also work. 
 Choose black, red, orange, green, blue, or purple from the bottom color palette.
+Click the thing to choose a **custom color**, including white. Custom
+colors work with Marker, Highlighter, Bucket, Shapes, Text, and Math symbols.
+The picker remembers your last custom color while the page is open; click it
+again to reuse or change that color. Changing color also updates an open text box.
 Use the **Width** slider for sizes from 1–50 pixels. Each drawing tool
 remember their own size while the page is open.
 Use a mouse, finger, or stylus. Drawings stay in memory until you refresh or close

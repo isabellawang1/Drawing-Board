@@ -57,6 +57,9 @@ function start() {
   let textDraft = null;
   const textEditor = document.querySelector('#text-editor');
   const textInput = document.querySelector('#text-input');
+  const presetColors = [...document.querySelectorAll('input[name="color"]')];
+  const customColor = document.querySelector('#custom-color');
+  let drawingColor = presetColors.find(input => input.checked).value;
   const widths = { marker: 5, highlighter: 20, eraser: 20, line: 5, rectangle: 5, circle: 5, text: 24 };
   const widthInput = document.querySelector('#brush-width');
   const widthValue = document.querySelector('#width-value');
@@ -131,11 +134,21 @@ function start() {
       showWidth();
     };
   }
-  for (const color of document.querySelectorAll('input[name="color"]')) {
-    color.onchange = () => {
-      if (textDraft) textInput.style.color = textDraft.color = color.value;
-    };
+  function selectColor(value, custom = false) {
+    drawingColor = value;
+    for (const preset of presetColors) preset.checked = !custom && preset.value === value;
+    customColor.dataset.active = String(custom);
+    if (textDraft) textInput.style.color = textDraft.color = value;
   }
+  for (const color of presetColors) color.onchange = () => selectColor(color.value);
+  const useCustomColor = () => {
+    customColor.parentElement.style.setProperty('--color', customColor.value);
+    customColor.title = `Custom color: ${customColor.value.toUpperCase()}`;
+    selectColor(customColor.value, true);
+  };
+  customColor.oninput = customColor.onchange = useCustomColor;
+  // Reuse the last custom color even when the picker opens without changing it.
+  customColor.onclick = useCustomColor;
 
   function closeShapes(restoreFocus = false) {
     shapePicker.open = false;
@@ -351,7 +364,7 @@ function start() {
     const x = Math.floor((event.clientX - bounds.left) * scale);
     const y = Math.floor((event.clientY - bounds.top) * scale);
     if (x < 0 || y < 0 || x >= paper.width || y >= paper.height) return;
-    const color = document.querySelector('input[name="color"]:checked').value;
+    const color = drawingColor;
     const rgb = [1, 3, 5].map(index => parseInt(color.slice(index, index + 2), 16));
     const image = paperContext.getImageData(0, 0, paper.width, paper.height);
     const offset = (y * paper.width + x) * 4;
@@ -429,7 +442,7 @@ function start() {
     finishText();
     const initialText = pendingMath;
     clearPendingMath();
-    textDraft = { x, y, size: widths.text, color: document.querySelector('input[name="color"]:checked').value };
+    textDraft = { x, y, size: widths.text, color: drawingColor };
     textInput.value = initialText;
     textInput.style.fontSize = `${textDraft.size}px`;
     textInput.style.color = textDraft.color;
@@ -491,7 +504,7 @@ function start() {
     }
     pointer = event.pointerId;
     canvas.setPointerCapture(pointer);
-    activeStroke = { type, width: widths[type], color: document.querySelector('input[name="color"]:checked').value, points: [] };
+    activeStroke = { type, width: widths[type], color: drawingColor, points: [] };
     appendPoint(event);
     render();
     updateHistoryButtons();
