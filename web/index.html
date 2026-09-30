@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=math-menu-1" defer></script>
+  <script src="app.js?v=bucket-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
@@ -65,23 +65,26 @@
     .width-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #aaa; }
     .width-heading output { color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums; }
     input[type="range"] { display: block; width: 100%; height: 28px; margin: 4px 0 0; accent-color: #fff; color-scheme: dark; cursor: pointer; }
+    input[type="range"]:disabled { opacity: 0.35; cursor: default; }
     input:focus-visible + .tool-button, input:focus-visible + .shape-option, summary:focus-visible, input[type="range"]:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
     input:focus-visible + .swatch { outline: 2px dashed #fff; outline-offset: 4px; }
     .history button:focus-visible { outline: 2px solid #252525; outline-offset: -2px; }
-    @media (max-width: 980px) {
+    @media (max-width: 1080px) {
       .toolbox { flex-direction: column; gap: 8px; padding-top: 4px; }
       .settings { border-left: 0; border-top: 1px solid #333; padding: 8px 0 0; gap: 20px; }
       .tool-button { min-height: 58px; }
     }
-    @media (max-width: 480px) {
+    @media (max-width: 560px) {
       .topbar { padding: 0 12px; min-height: 48px; gap: 8px; }
       h1 { font-size: 12px; }
       .action-label { display: none; }
       .history { gap: 0; }
       .history button { width: 36px; justify-content: center; padding: 8px; }
       .toolbox { padding-left: 8px; padding-right: 8px; }
-      .tool-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; width: 284px; }
+      .tool-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; width: 284px; }
       .tool-button { min-width: 0; padding: 8px 4px; font-size: 11px; }
+      .shape-options { right: auto; left: 0; }
+      .math-options { right: -100%; }
       .settings { gap: 16px; }
       .palette label { width: 26px; }
       .brush-width { width: 112px; }
@@ -107,7 +110,7 @@
     </div>
   </header>
   <main aria-label="Drawing area">
-    <canvas aria-label="Drag to draw, or select Text and click to type." tabindex="0"></canvas>
+    <canvas aria-label="Drag to draw, select Bucket and click to fill, or select Text and click to type." tabindex="0"></canvas>
     <p id="math-hint" role="status" hidden></p>
     <div id="text-editor" class="text-editor" hidden>
       <textarea id="text-input" aria-label="Text to place on the drawing" aria-describedby="text-help" placeholder="Type here…" wrap="off" spellcheck="false"></textarea>
@@ -141,6 +144,13 @@
         <span class="tool-button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-10 10H6l-4-4Z"/><path d="m8 10 7 7M11 20h10"/></svg>
           Eraser
+        </span>
+      </label>
+      <label class="tool-control" title="Click an area to fill it with the selected color">
+        <input type="radio" name="tool" value="bucket">
+        <span class="tool-button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3 9 9-8 8-9-9Z M1 11h16M6 1l6 6"/><path d="M20 14s-3 4-3 6a3 3 0 0 0 6 0c0-2-3-6-3-6Z"/></svg>
+          Bucket
         </span>
       </label>
       <label class="tool-control" title="Click the canvas to add text">
@@ -203,7 +213,7 @@
     </fieldset>
     <div class="settings">
       <fieldset class="colors">
-        <legend class="sr-only">Marker color</legend>
+        <legend class="sr-only">Drawing color</legend>
       <div class="palette">
         <label title="Black">
           <input type="radio" name="color" value="#000000" aria-label="Black" checked>

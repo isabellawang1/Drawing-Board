@@ -1,4 +1,44 @@
 // Draw directly on the browser canvas. No build step is needed.
+function findFillSpans(image, x, y) {
+  const { width, height, data } = image;
+  if (x < 0 || y < 0 || x >= width || y >= height) return [];
+  // Compare colors as displayed on white paper, including translucent ink.
+  const visible = (offset, channel) => 255 + (data[offset + channel] - 255) * data[offset + 3] / 255;
+  const seed = (y * width + x) * 4;
+  const color = [0, 1, 2].map(channel => visible(seed, channel));
+  const visited = new Uint8Array(width * height);
+  const matches = (px, py) => {
+    const index = py * width + px;
+    if (visited[index]) return false;
+    const offset = index * 4;
+    return Math.abs(visible(offset, 0) - color[0]) <= 24 &&
+      Math.abs(visible(offset, 1) - color[1]) <= 24 &&
+      Math.abs(visible(offset, 2) - color[2]) <= 24;
+  };
+
+  const pending = [[x, y]];
+  const spans = [];
+  while (pending.length) {
+    const [px, py] = pending.pop();
+    if (!matches(px, py)) continue;
+    let left = px, right = px;
+    while (left > 0 && matches(left - 1, py)) left--;
+    while (right + 1 < width && matches(right + 1, py)) right++;
+    visited.fill(1, py * width + left, py * width + right + 1);
+    spans.push([left, py, right]);
+    for (const row of [py - 1, py + 1]) {
+      if (row < 0 || row >= height) continue;
+      let inRun = false;
+      for (let column = left; column <= right; column++) {
+        const match = matches(column, row);
+        if (match && !inRun) pending.push([column, row]);
+        inRun = match;
+      }
+    }
+  }
+  return spans;
+}
+
 function start() {
   const canvas = document.querySelector('canvas');
   const context = canvas.getContext('2d');
@@ -63,13 +103,14 @@ function start() {
 
   function showWidth() {
     const tool = selectedTool();
-    const width = widths[tool];
+    const width = widths[tool] || widths.marker;
+    widthInput.disabled = tool === 'bucket';
     widthInput.min = tool === 'text' ? 8 : 1;
     widthInput.max = tool === 'text' ? 72 : 50;
     widthInput.value = width;
     widthLabel.textContent = tool === 'text' ? 'Text size' : 'Width';
     widthInput.setAttribute('aria-valuetext', `${width} pixels`);
-    widthValue.value = `${width} px`;
+    widthValue.value = tool === 'bucket' ? '—' : `${width} px`;
     shapeToggle.dataset.active = String(isShape(tool));
     shapeToggle.title = isShape(tool) ? `Shapes: ${tool}` : 'Choose a shape';
     shapeToggle.setAttribute('aria-label', isShape(tool) ? `Shapes: ${tool}` : 'Shapes');
@@ -225,6 +266,14 @@ function start() {
 
   // Build an opaque stroke first, so highlighter segments don't darken at every join.
   function paintStroke(target, stroke) {
+    if (stroke.type === 'bucket') {
+      const scale = window.devicePixelRatio || 1;
+      target.save();
+      target.setTransform(scale, 0, 0, scale, 0, 0);
+      target.drawImage(stroke.patch, stroke.x, stroke.y, stroke.width, stroke.height);
+      target.restore();
+      return;
+    }
     layerContext.clearRect(0, 0, layer.width, layer.height);
     layerContext.fillStyle = layerContext.strokeStyle = stroke.color;
     const points = stroke.points;
@@ -294,6 +343,42 @@ function start() {
     paperContext.clearRect(0, 0, paper.width, paper.height);
     for (const stroke of strokes) paintStroke(paperContext, stroke);
     render();
+  }
+
+  function fillArea(event) {
+    const bounds = canvas.getBoundingClientRect();
+    const scale = window.devicePixelRatio || 1;
+    const x = Math.floor((event.clientX - bounds.left) * scale);
+    const y = Math.floor((event.clientY - bounds.top) * scale);
+    if (x < 0 || y < 0 || x >= paper.width || y >= paper.height) return;
+    const color = document.querySelector('input[name="color"]:checked').value;
+    const rgb = [1, 3, 5].map(index => parseInt(color.slice(index, index + 2), 16));
+    const image = paperContext.getImageData(0, 0, paper.width, paper.height);
+    const offset = (y * paper.width + x) * 4;
+    if (image.data[offset + 3] === 255 && rgb.every((value, index) => image.data[offset + index] === value)) return;
+    const spans = findFillSpans(image, x, y);
+    if (!spans.length) return;
+    let left = x, right = x, top = y, bottom = y;
+    for (const [start, row, end] of spans) {
+      left = Math.min(left, start);
+      right = Math.max(right, end);
+      top = Math.min(top, row);
+      bottom = Math.max(bottom, row);
+    }
+    // Save the filled region itself so resize/undo never recomputes its boundaries.
+    const patch = document.createElement('canvas');
+    patch.width = right - left + 1;
+    patch.height = bottom - top + 1;
+    const patchContext = patch.getContext('2d');
+    patchContext.fillStyle = color;
+    for (const [start, row, end] of spans) patchContext.fillRect(start - left, row - top, end - start + 1, 1);
+    const stroke = { type: 'bucket', patch, x: left / scale, y: top / scale,
+      width: patch.width / scale, height: patch.height / scale };
+    strokes.push(stroke);
+    recordAction({ type: 'stroke', stroke });
+    paintStroke(paperContext, stroke);
+    render();
+    updateHistoryButtons();
   }
 
   function appendPoint(event) {
@@ -395,6 +480,10 @@ function start() {
     event.preventDefault();
     finishText();
     const type = selectedTool();
+    if (type === 'bucket') {
+      fillArea(event);
+      return;
+    }
     if (type === 'text') {
       const bounds = canvas.getBoundingClientRect();
       beginText(event.clientX - bounds.left, event.clientY - bounds.top);

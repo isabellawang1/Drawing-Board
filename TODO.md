@@ -4,7 +4,7 @@ Add one at a time while keeping a basic typa design :0
 In order of priority I think??
 
 - [x] Different marker types: highlighter alongside the standard marker.
-- [ ] Bucket tool: fill an enclosed area with the selected color.
+- [x] Bucket tool: fill an enclosed area with the selected color.
 
 - [x] Undo and redo, able to recover from clear all.
 - [x] Straight lines, rectangles, and circles.

@@ -17,6 +17,8 @@ confirm. Escape closes the menu.
 
 - **Marker:** a solid, round line.
 - **Highlighter:** a kinda translucent line. 
+- **Bucket:** choose a color, then click or tap inside an enclosed area to fill it.
+    Fills work with Undo, Redo, and Clear All, and stay in place when the window resizes.
 - **Line:** drag from the start to the end of a straight line.
 - **Rectangle:** drag between opposite corners to draw an outline.
 - **Circle:** drag from its center outward to set the radius.
@@ -50,3 +52,5 @@ Visit http://localhost:8080. If the server is already running, just refresh.
 
 After editing either file, refresh the page. No compiler, dependencies, or build
 step is needed.
+
+Run the bucket fill tests with `node --test tests/bucket.test.cjs`.
