@@ -46,7 +46,7 @@ function start() {
   const paperContext = paper.getContext('2d');
   const layer = document.createElement('canvas'); // One stroke, before applying opacity.
   const layerContext = layer.getContext('2d');
-  let layers = [{ id: 1, name: 'Layer 1', strokes: [] }]; // Bottom to top.
+  let layers = [{ id: 1, name: 'Layer 1', visible: true, strokes: [] }]; // Bottom to top.
   let selectedLayerId = 1;
   let nextLayerId = 2;
   const layerSurfaces = new Map();
@@ -59,6 +59,7 @@ function start() {
   const layersPicker = document.querySelector('#layers-picker');
   const layersPanel = document.querySelector('#layers-panel');
   const layerList = document.querySelector('#layer-list');
+  const layerHint = document.querySelector('#layer-hint');
   let layerRename = null;
   let activeStroke = null;
   let pointer = null;
@@ -132,13 +133,14 @@ function start() {
 
   function updateLayers() {
     const focusedId = layerList.contains(document.activeElement) ? document.activeElement.dataset.layerId : null;
-    const focusedControl = ['layer-remove', 'layer-rename', 'layer-rename-input']
+    const focusedControl = ['layer-remove', 'layer-rename', 'layer-rename-input', 'layer-visibility']
       .find(name => document.activeElement.classList.contains(name)) || 'layer-select';
     layerList.replaceChildren();
     for (const item of [...layers].reverse()) {
       const row = document.createElement('li');
       row.className = 'layer-row';
       row.dataset.active = String(item.id === selectedLayerId);
+      row.dataset.hidden = String(!item.visible);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'layer-select';
@@ -151,13 +153,34 @@ function start() {
       name.textContent = item.name;
       const detail = document.createElement('small');
       detail.className = 'layer-detail';
-      detail.textContent = item.id === selectedLayerId ? 'Selected' : 'Click to draw on this layer';
+      detail.textContent = item.visible
+        ? (item.id === selectedLayerId ? 'Selected' : 'Click to draw on this layer')
+        : (item.id === selectedLayerId ? 'Selected · Hidden' : 'Hidden');
       button.append(name, detail);
       button.onclick = () => {
         settleDrawing();
         selectedLayerId = item.id;
         updateLayers();
         layerList.querySelector(`[data-layer-id="${item.id}"]`).focus({ preventScroll: true });
+      };
+      const visibilityButton = document.createElement('button');
+      visibilityButton.type = 'button';
+      visibilityButton.className = 'layer-visibility';
+      visibilityButton.dataset.layerId = item.id;
+      visibilityButton.setAttribute('aria-label', `Visibility of ${item.name}`);
+      visibilityButton.setAttribute('aria-pressed', String(item.visible));
+      visibilityButton.title = `${item.visible ? 'Hide' : 'Show'} ${item.name}`;
+      visibilityButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>' +
+        (item.visible ? '' : '<path d="m3 3 18 18"/>') + '</svg>';
+      visibilityButton.onclick = () => {
+        settleDrawing();
+        const before = snapshot();
+        item.visible = !item.visible;
+        recordAction(before);
+        render();
+        updateLayers();
+        updateHistoryButtons();
+        layerList.querySelector(`.layer-visibility[data-layer-id="${item.id}"]`).focus({ preventScroll: true });
       };
       const renameButton = document.createElement('button');
       renameButton.type = 'button';
@@ -212,7 +235,7 @@ function start() {
         cancel.onclick = () => finishLayerRename(false, true);
         editor.append(input, save, cancel);
         row.append(editor);
-      } else row.append(button, renameButton, removeButton);
+      } else row.append(button, visibilityButton, renameButton, removeButton);
       layerList.append(row);
     }
     if (focusedId) {
@@ -221,7 +244,11 @@ function start() {
         layerList.querySelector(`.layer-select[data-layer-id="${selectedLayerId}"]`);
       focusTarget.focus({ preventScroll: true });
     }
-    layersToggle.title = `Layers — drawing on ${selectedLayer().name}`;
+    const selected = selectedLayer();
+    layersToggle.title = selected.visible ? `Layers — drawing on ${selected.name}` : `Layers — ${selected.name} is hidden`;
+    canvas.dataset.layerHidden = String(!selected.visible);
+    layerHint.hidden = selected.visible;
+    layerHint.textContent = selected.visible ? '' : `${selected.name} is hidden. Show it with the eye button or select a visible layer to draw.`;
   }
 
   function finishLayerRename(commit = true, restoreFocus = false) {
@@ -276,7 +303,7 @@ function start() {
     settleDrawing();
     const before = snapshot();
     const id = nextLayerId++;
-    layers.push({ id, name: `Layer ${id}`, strokes: [] });
+    layers.push({ id, name: `Layer ${id}`, visible: true, strokes: [] });
     selectedLayerId = id;
     recordAction(before);
     updateLayers();
@@ -541,6 +568,7 @@ function start() {
   function render() {
     context.clearRect(0, 0, canvas.width, canvas.height);
     for (const item of layers) {
+      if (!item.visible) continue;
       const surface = layerSurface(item.id);
       if (activeStroke && activeStroke.layerId === item.id) {
         // Erasing the preview must reveal lower layers, not erase the composite.
@@ -654,6 +682,7 @@ function start() {
   function beginText(x, y) {
     finishLayerRename();
     finishText();
+    if (!selectedLayer().visible) return;
     const initialText = pendingMath;
     clearPendingMath();
     textDraft = { x, y, size: widths.text, color: drawingColor, layerId: selectedLayerId };
@@ -705,6 +734,7 @@ function start() {
     event.preventDefault();
     finishLayerRename();
     finishText();
+    if (!selectedLayer().visible) return;
     const type = selectedTool();
     if (type === 'bucket') {
       fillArea(event);
