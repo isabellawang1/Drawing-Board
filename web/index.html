@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=layers-5" defer></script>
+  <script src="app.js?v=layers-6" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
@@ -90,6 +90,9 @@
     .layer-remove:disabled { color: #666; }
     .layer-remove:hover:enabled, .layer-rename:hover, .layer-visibility:hover { color: #fff; }
     .layer-row[data-hidden="true"] .layer-name { color: #b0b0b0; }
+    .layer-order { display: flex; flex-shrink: 0; gap: 4px; padding: 4px 8px; border-top: 1px solid #444; }
+    .layer-order button { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 6px; font-size: 12px; }
+    .layer-order button:disabled { color: #777; }
     .layer-rename-editor { width: 100%; min-width: 0; padding: 8px; }
     .layer-rename-input { display: block; width: 100%; min-width: 0; padding: 7px; border: 1px solid #8aa8cc; border-radius: 0; background: #202125; color: #fff; font: inherit; font-size: 12px; }
     .layer-rename-input:focus-visible { outline: 2px solid #8aa8cc; outline-offset: 1px; }
@@ -203,8 +206,19 @@
         Add layer
       </button>
       <ul id="layer-list" class="layer-list" aria-label="Drawing layers, front to back"></ul>
+      <div class="layer-order" role="group" aria-label="Reorder selected layer">
+        <button id="layer-up" type="button" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+          Move up
+        </button>
+        <button id="layer-down" type="button" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-6-6 6 6 6-6"/></svg>
+          Move down
+        </button>
+      </div>
+      <span id="layer-order-status" class="sr-only" role="status"></span>
       <span id="layer-rename-help" class="sr-only">Enter saves the name. Escape cancels. Empty names keep the current name.</span>
-      <p class="layers-hint">Draw on the selected layer. New layers appear on top. Undo restores removed layers. Keep at least one layer.</p>
+      <p class="layers-hint">Select a layer to draw or reorder. Top layers appear in front. Undo restores changes.</p>
     </aside>
     </details>
     <div id="text-editor" class="text-editor" hidden>

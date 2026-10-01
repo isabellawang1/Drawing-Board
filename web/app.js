@@ -59,6 +59,8 @@ function start() {
   const layersPicker = document.querySelector('#layers-picker');
   const layersPanel = document.querySelector('#layers-panel');
   const layerList = document.querySelector('#layer-list');
+  const layerUpButton = document.querySelector('#layer-up');
+  const layerDownButton = document.querySelector('#layer-down');
   const layerHint = document.querySelector('#layer-hint');
   let layerRename = null;
   let activeStroke = null;
@@ -245,11 +247,37 @@ function start() {
       focusTarget.focus({ preventScroll: true });
     }
     const selected = selectedLayer();
+    const selectedIndex = layers.indexOf(selected);
+    layerUpButton.disabled = selectedIndex === layers.length - 1;
+    layerDownButton.disabled = selectedIndex === 0;
+    layerUpButton.title = `Move ${selected.name} up (toward the front)`;
+    layerDownButton.title = `Move ${selected.name} down (toward the back)`;
     layersToggle.title = selected.visible ? `Layers — drawing on ${selected.name}` : `Layers — ${selected.name} is hidden`;
     canvas.dataset.layerHidden = String(!selected.visible);
     layerHint.hidden = selected.visible;
     layerHint.textContent = selected.visible ? '' : `${selected.name} is hidden. Show it with the eye button or select a visible layer to draw.`;
   }
+
+  function moveSelectedLayer(direction) {
+    const index = layers.findIndex(item => item.id === selectedLayerId);
+    const target = index + direction;
+    if (target < 0 || target >= layers.length) return;
+    settleDrawing();
+    const before = snapshot();
+    [layers[index], layers[target]] = [layers[target], layers[index]];
+    recordAction(before);
+    render();
+    updateLayers();
+    updateHistoryButtons();
+    const selectedButton = layerList.querySelector(`.layer-select[data-layer-id="${selectedLayerId}"]`);
+    selectedButton.scrollIntoView({ block: 'nearest' });
+    const moveButton = direction === 1 ? layerUpButton : layerDownButton;
+    (moveButton.disabled ? selectedButton : moveButton).focus({ preventScroll: true });
+    document.querySelector('#layer-order-status').textContent =
+      `${selectedLayer().name} moved ${direction === 1 ? 'up' : 'down'}. Position ${layers.length - target} of ${layers.length}, front to back.`;
+  }
+  layerUpButton.onclick = () => moveSelectedLayer(1);
+  layerDownButton.onclick = () => moveSelectedLayer(-1);
 
   function finishLayerRename(commit = true, restoreFocus = false) {
     if (!layerRename) return;

@@ -15,6 +15,11 @@ Click **Layers** on the right of the drawing area to open the sidebar. Use
 **Add layer** to create a new layer above the others, then click a layer to select
 it. The selected layer receives all drawing, text, erasing, and bucket fills.
 
+Select a layer, then use **Move up** or **Move down** below the list to reorder
+it one position at a time. Layers higher in the list appear in front of lower
+layers. Moving a layer preserves its artwork, name, visibility, and selection.
+Hidden layers can be reordered too.
+
 Click the eye beside a layer to hide or show its artwork. Hidden layers keep
 their artwork and position in the stack, and are marked **Hidden** in the list.
 Show a hidden selected layer or select a visible layer before drawing on it.
@@ -28,7 +33,7 @@ Click the trash button beside a layer to remove it and its artwork. Removing the
 selected layer selects the layer below it (or the next layer if it was the bottom
 one). At least one layer must remain.
 
-Adding, renaming, removing, and hiding/showing layers work with Undo and Redo,
+Adding, renaming, removing, reordering, and hiding/showing layers work with Undo and Redo,
 including restoring removed artwork. **Clear All** clears artwork from every
 layer, including hidden layers, and can be undone.
 Close the sidebar with its close button or Escape;
