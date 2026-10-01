@@ -59,6 +59,7 @@ function start() {
   const layersPicker = document.querySelector('#layers-picker');
   const layersPanel = document.querySelector('#layers-panel');
   const layerList = document.querySelector('#layer-list');
+  let layerRename = null;
   let activeStroke = null;
   let pointer = null;
   let textDraft = null;
@@ -123,6 +124,7 @@ function start() {
   }
 
   function settleDrawing() {
+    finishLayerRename();
     finishText();
     finish();
     clearPendingMath();
@@ -130,6 +132,8 @@ function start() {
 
   function updateLayers() {
     const focusedId = layerList.contains(document.activeElement) ? document.activeElement.dataset.layerId : null;
+    const focusedControl = ['layer-remove', 'layer-rename', 'layer-rename-input']
+      .find(name => document.activeElement.classList.contains(name)) || 'layer-select';
     layerList.replaceChildren();
     for (const item of [...layers].reverse()) {
       const row = document.createElement('li');
@@ -141,6 +145,7 @@ function start() {
       button.dataset.layerId = item.id;
       button.setAttribute('aria-pressed', String(item.id === selectedLayerId));
       button.setAttribute('aria-label', item.name);
+      button.title = item.name;
       const name = document.createElement('span');
       name.className = 'layer-name';
       name.textContent = item.name;
@@ -154,18 +159,103 @@ function start() {
         updateLayers();
         layerList.querySelector(`[data-layer-id="${item.id}"]`).focus({ preventScroll: true });
       };
-      row.append(button);
+      const renameButton = document.createElement('button');
+      renameButton.type = 'button';
+      renameButton.className = 'layer-rename';
+      renameButton.dataset.layerId = item.id;
+      renameButton.setAttribute('aria-label', `Rename ${item.name}`);
+      renameButton.title = `Rename ${item.name}`;
+      renameButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L20 8a2 2 0 0 0-5-5L4 14Z"/></svg>';
+      renameButton.onclick = () => {
+        settleDrawing();
+        layerRename = { id: item.id, name: item.name };
+        updateLayers();
+        const input = layerList.querySelector('.layer-rename-input');
+        input.focus({ preventScroll: true });
+        input.select();
+      };
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'layer-remove';
+      removeButton.dataset.layerId = item.id;
+      removeButton.disabled = layers.length === 1;
+      removeButton.setAttribute('aria-label', `Remove ${item.name}`);
+      removeButton.title = removeButton.disabled ? 'Keep at least one layer' : `Remove ${item.name}`;
+      removeButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>';
+      removeButton.onclick = () => removeLayer(item.id);
+      if (layerRename?.id === item.id) {
+        const editor = document.createElement('div');
+        editor.className = 'layer-rename-editor';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'layer-rename-input';
+        input.dataset.layerId = item.id;
+        input.value = layerRename.name;
+        input.setAttribute('aria-label', `New name for ${item.name}`);
+        input.setAttribute('aria-describedby', 'layer-rename-help');
+        input.oninput = () => { layerRename.name = input.value; };
+        input.onkeydown = event => {
+          if (event.isComposing) return;
+          if (event.key === 'Enter' || event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            finishLayerRename(event.key === 'Enter', true);
+          }
+        };
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.textContent = 'Save';
+        save.onclick = () => finishLayerRename(true, true);
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.textContent = 'Cancel';
+        cancel.onclick = () => finishLayerRename(false, true);
+        editor.append(input, save, cancel);
+        row.append(editor);
+      } else row.append(button, renameButton, removeButton);
       layerList.append(row);
     }
     if (focusedId) {
-      const focusTarget = layerList.querySelector(`[data-layer-id="${focusedId}"]`) ||
-        layerList.querySelector(`[data-layer-id="${selectedLayerId}"]`);
+      const focusTarget = layerList.querySelector(`.${focusedControl}[data-layer-id="${focusedId}"]:not(:disabled)`) ||
+        layerList.querySelector('.layer-rename-input') ||
+        layerList.querySelector(`.layer-select[data-layer-id="${selectedLayerId}"]`);
       focusTarget.focus({ preventScroll: true });
     }
     layersToggle.title = `Layers — drawing on ${selectedLayer().name}`;
   }
 
+  function finishLayerRename(commit = true, restoreFocus = false) {
+    if (!layerRename) return;
+    const { id, name } = layerRename;
+    layerRename = null;
+    const item = layers.find(item => item.id === id);
+    const trimmed = name.trim();
+    if (commit && item && trimmed && trimmed !== item.name) {
+      const before = snapshot();
+      item.name = trimmed;
+      recordAction(before);
+    }
+    updateLayers();
+    updateHistoryButtons();
+    if (restoreFocus) layerList.querySelector(`.layer-rename[data-layer-id="${id}"]`).focus({ preventScroll: true });
+  }
+
+  function removeLayer(id) {
+    const index = layers.findIndex(item => item.id === id);
+    if (layers.length === 1 || index === -1) return;
+    settleDrawing();
+    const before = snapshot();
+    layers.splice(index, 1);
+    if (selectedLayerId === id) selectedLayerId = layers[Math.max(0, index - 1)].id;
+    recordAction(before);
+    rebuildPaper();
+    updateLayers();
+    updateHistoryButtons();
+    layerList.querySelector(`.layer-select[data-layer-id="${selectedLayerId}"]`).focus({ preventScroll: true });
+  }
+
   function setLayersOpen(open) {
+    if (!open) finishLayerRename();
     layersPicker.open = open;
     layersToggle.setAttribute('aria-expanded', String(open));
     if (open) document.querySelector('#layer-add').focus({ preventScroll: true });
@@ -178,7 +268,8 @@ function start() {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      setLayersOpen(false);
+      if (layerRename) finishLayerRename(false, true);
+      else setLayersOpen(false);
     }
   };
   document.querySelector('#layer-add').onclick = () => {
@@ -561,6 +652,7 @@ function start() {
   }
 
   function beginText(x, y) {
+    finishLayerRename();
     finishText();
     const initialText = pendingMath;
     clearPendingMath();
@@ -611,6 +703,7 @@ function start() {
   canvas.onpointerdown = (event) => {
     if (pointer !== null || !event.isPrimary || event.button !== 0) return;
     event.preventDefault();
+    finishLayerRename();
     finishText();
     const type = selectedTool();
     if (type === 'bucket') {
@@ -650,6 +743,7 @@ function start() {
     else finish();
   });
   clearButton.onclick = () => {
+    finishLayerRename();
     clearPendingMath();
     finishText();
     finish();
@@ -661,6 +755,7 @@ function start() {
     updateHistoryButtons();
   };
   undoButton.onclick = () => {
+    finishLayerRename();
     clearPendingMath();
     finishText();
     finish();
@@ -670,6 +765,7 @@ function start() {
     restoreSnapshot(action.before);
   };
   redoButton.onclick = () => {
+    finishLayerRename();
     clearPendingMath();
     finishText();
     finish();

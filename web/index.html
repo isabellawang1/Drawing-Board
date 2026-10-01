@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=layers-2" defer></script>
+  <script src="app.js?v=layers-4" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
@@ -34,7 +34,7 @@
     .layers-toggle:hover { background: #1a1a1a; }
     .layers-panel {
       position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 4;
-      display: flex; flex-direction: column; width: 170px; max-height: 250px;
+      display: flex; flex-direction: column; width: 220px; max-width: calc(100vw - 24px); max-height: 250px;
       overflow: hidden; border: 0; border-radius: 12px; background: #2a2b2f; color: #fff;
       box-shadow: 0 8px 18px rgba(0,0,0,0.14);
     }
@@ -56,6 +56,7 @@
     .layer-add:hover:enabled { background: rgba(255,255,255,0.04); }
     .layer-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 0 8px 8px; list-style: none; }
     .layer-row {
+      display: flex; align-items: stretch;
       min-height: 44px; margin-top: 4px; border: 0; border-radius: 0; background: transparent;
     }
     .layer-row[data-active="true"] {
@@ -82,7 +83,14 @@
       border-right: 2px solid #8aa8cc;
       inset: 0 0 0 0;
     }
-    .layer-select { display: block; width: 100%; min-width: 0; min-height: 42px; padding: 7px 10px; text-align: left; }
+    .layer-select { display: block; flex: 1; min-width: 0; min-height: 42px; padding: 7px 10px; text-align: left; }
+    .layer-remove, .layer-rename { display: grid; place-items: center; flex-shrink: 0; width: 36px; padding: 6px; color: #b9b9b9; }
+    .layer-remove:disabled { color: #666; }
+    .layer-remove:hover:enabled, .layer-rename:hover { color: #fff; }
+    .layer-rename-editor { width: 100%; min-width: 0; padding: 8px; }
+    .layer-rename-input { display: block; width: 100%; min-width: 0; padding: 7px; border: 1px solid #8aa8cc; border-radius: 0; background: #202125; color: #fff; font: inherit; font-size: 12px; }
+    .layer-rename-input:focus-visible { outline: 2px solid #8aa8cc; outline-offset: 1px; }
+    .layer-rename-editor button { min-height: 32px; margin-top: 4px; padding: 6px 10px; font-size: 12px; }
     .layer-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 500; color: #fff; }
     .layer-detail { display: block; margin-top: 2px; color: #b0b0b0; font-size: 10px; }
     .layers-panel button:hover:enabled { background: rgba(255,255,255,0.04); }
@@ -191,7 +199,8 @@
         Add layer
       </button>
       <ul id="layer-list" class="layer-list" aria-label="Drawing layers, front to back"></ul>
-      <p class="layers-hint">Draw on the selected layer. New layers appear on top.</p>
+      <span id="layer-rename-help" class="sr-only">Enter saves the name. Escape cancels. Empty names keep the current name.</span>
+      <p class="layers-hint">Draw on the selected layer. New layers appear on top. Undo restores removed layers. Keep at least one layer.</p>
     </aside>
     </details>
     <div id="text-editor" class="text-editor" hidden>

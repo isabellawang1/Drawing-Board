@@ -15,6 +15,8 @@ In order of priority I think??
 - [ ] Eyedropper to pick a color from the drawing.
 
 - [x] Layers: add and select layers from a sidebar on the right.
+- [x] Remove layers, with Undo and Redo to restore their artwork.
+- [x] Rename layers, with Undo and Redo.
 - [ ] Import an image to draw over.
 - [ ] Save a drawing as a PNG image.
 - [ ] Autosave locally so refreshing doesn't lose the drawing.
