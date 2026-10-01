@@ -11,6 +11,14 @@ be placed.
 Click **Shapes** to choose Line, Rectangle, or Circle from the menu above it.
 Undo, Redo, and Clear All are in the top bar.
 
+Click **Layers** on the right of the drawing area to open the sidebar. Use
+**Add layer** to create a new layer above the others, then click a layer to select
+it. The selected layer receives all drawing, text, erasing, and bucket fills.
+
+Adding a layer works with Undo and Redo. **Clear All** clears artwork from every
+layer and can be undone. Close the sidebar with its close button or Escape;
+opening and closing it keeps the canvas and drawing in place.
+
 With a keyboard, Tab to a tool and use the arrow keys to switch. Focus Shapes
 and press Enter to open its menu, use arrows to choose a shape, then Enter to
 confirm. Escape closes the menu.

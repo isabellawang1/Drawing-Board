@@ -42,16 +42,23 @@ function findFillSpans(image, x, y) {
 function start() {
   const canvas = document.querySelector('canvas');
   const context = canvas.getContext('2d');
-  const paper = document.createElement('canvas'); // Finished strokes.
+  const paper = document.createElement('canvas'); // Selected layer with an in-progress stroke.
   const paperContext = paper.getContext('2d');
   const layer = document.createElement('canvas'); // One stroke, before applying opacity.
   const layerContext = layer.getContext('2d');
-  let strokes = []; // Used to restore the drawing after resizing or undoing.
+  let layers = [{ id: 1, name: 'Layer 1', strokes: [] }]; // Bottom to top.
+  let selectedLayerId = 1;
+  let nextLayerId = 2;
+  const layerSurfaces = new Map();
   const undoHistory = [];
   const redoHistory = [];
   const undoButton = document.querySelector('#undo');
   const redoButton = document.querySelector('#redo');
   const clearButton = document.querySelector('#clear');
+  const layersToggle = document.querySelector('#layers-toggle');
+  const layersPicker = document.querySelector('#layers-picker');
+  const layersPanel = document.querySelector('#layers-panel');
+  const layerList = document.querySelector('#layer-list');
   let activeStroke = null;
   let pointer = null;
   let textDraft = null;
@@ -81,12 +88,117 @@ function start() {
     const pending = !!activeStroke || !!(textDraft && textInput.value.trim());
     undoButton.disabled = undoHistory.length === 0 && !pending;
     redoButton.disabled = redoHistory.length === 0 || pending;
-    clearButton.disabled = strokes.length === 0 && !pending && !pendingMath;
+    clearButton.disabled = !layers.some(item => item.strokes.length) && !pending && !pendingMath;
   }
 
-  function recordAction(action) {
-    undoHistory.push(action);
+  function snapshot() {
+    // Finished strokes and their arrays are immutable, so history can share them.
+    return { layers: layers.map(item => ({ ...item })), selectedLayerId };
+  }
+
+  function recordAction(before) {
+    undoHistory.push({ before, after: snapshot() });
     redoHistory.length = 0;
+  }
+
+  function selectedLayer() {
+    return layers.find(item => item.id === selectedLayerId);
+  }
+
+  function layerSurface(id) {
+    if (!layerSurfaces.has(id)) layerSurfaces.set(id, document.createElement('canvas'));
+    const surface = layerSurfaces.get(id);
+    if (surface.width !== canvas.width) surface.width = canvas.width;
+    if (surface.height !== canvas.height) surface.height = canvas.height;
+    return surface;
+  }
+
+  function appendStroke(stroke, layerId = selectedLayerId) {
+    const before = snapshot();
+    const owner = layers.find(item => item.id === layerId);
+    owner.strokes = [...owner.strokes, stroke];
+    recordAction(before);
+    paintStroke(layerSurface(owner.id).getContext('2d'), stroke);
+    updateLayers();
+  }
+
+  function settleDrawing() {
+    finishText();
+    finish();
+    clearPendingMath();
+  }
+
+  function updateLayers() {
+    const focusedId = layerList.contains(document.activeElement) ? document.activeElement.dataset.layerId : null;
+    layerList.replaceChildren();
+    for (const item of [...layers].reverse()) {
+      const row = document.createElement('li');
+      row.className = 'layer-row';
+      row.dataset.active = String(item.id === selectedLayerId);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'layer-select';
+      button.dataset.layerId = item.id;
+      button.setAttribute('aria-pressed', String(item.id === selectedLayerId));
+      button.setAttribute('aria-label', item.name);
+      const name = document.createElement('span');
+      name.className = 'layer-name';
+      name.textContent = item.name;
+      const detail = document.createElement('small');
+      detail.className = 'layer-detail';
+      detail.textContent = item.id === selectedLayerId ? 'Selected' : 'Click to draw on this layer';
+      button.append(name, detail);
+      button.onclick = () => {
+        settleDrawing();
+        selectedLayerId = item.id;
+        updateLayers();
+        layerList.querySelector(`[data-layer-id="${item.id}"]`).focus({ preventScroll: true });
+      };
+      row.append(button);
+      layerList.append(row);
+    }
+    if (focusedId) {
+      const focusTarget = layerList.querySelector(`[data-layer-id="${focusedId}"]`) ||
+        layerList.querySelector(`[data-layer-id="${selectedLayerId}"]`);
+      focusTarget.focus({ preventScroll: true });
+    }
+    layersToggle.title = `Layers — drawing on ${selectedLayer().name}`;
+  }
+
+  function setLayersOpen(open) {
+    layersPicker.open = open;
+    layersToggle.setAttribute('aria-expanded', String(open));
+    if (open) document.querySelector('#layer-add').focus({ preventScroll: true });
+    else layersToggle.focus({ preventScroll: true });
+  }
+  // Let the native disclosure open even before the drawing code has initialized.
+  layersPicker.ontoggle = () => setLayersOpen(layersPicker.open);
+  document.querySelector('#layers-close').onclick = () => setLayersOpen(false);
+  layersPanel.onkeydown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      setLayersOpen(false);
+    }
+  };
+  document.querySelector('#layer-add').onclick = () => {
+    settleDrawing();
+    const before = snapshot();
+    const id = nextLayerId++;
+    layers.push({ id, name: `Layer ${id}`, strokes: [] });
+    selectedLayerId = id;
+    recordAction(before);
+    updateLayers();
+    updateHistoryButtons();
+    layerList.querySelector(`[data-layer-id="${id}"]`).scrollIntoView({ block: 'nearest' });
+  };
+
+  function restoreSnapshot(state) {
+    layers = state.layers.map(item => ({ ...item }));
+    selectedLayerId = state.selectedLayerId;
+    rebuildPaper();
+    updateLayers();
+    updateHistoryButtons();
   }
   function selectedTool() {
     return document.querySelector('input[name="tool"]:checked').value;
@@ -337,8 +449,16 @@ function start() {
 
   function render() {
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(paper, 0, 0);
-    if (activeStroke) paintStroke(context, activeStroke);
+    for (const item of layers) {
+      const surface = layerSurface(item.id);
+      if (activeStroke && activeStroke.layerId === item.id) {
+        // Erasing the preview must reveal lower layers, not erase the composite.
+        paperContext.clearRect(0, 0, paper.width, paper.height);
+        paperContext.drawImage(surface, 0, 0);
+        paintStroke(paperContext, activeStroke);
+        context.drawImage(paper, 0, 0);
+      } else context.drawImage(surface, 0, 0);
+    }
   }
 
   function resize() {
@@ -353,8 +473,14 @@ function start() {
   }
 
   function rebuildPaper() {
-    paperContext.clearRect(0, 0, paper.width, paper.height);
-    for (const stroke of strokes) paintStroke(paperContext, stroke);
+    for (const id of layerSurfaces.keys()) {
+      if (!layers.some(item => item.id === id)) layerSurfaces.delete(id);
+    }
+    for (const item of layers) {
+      const target = layerSurface(item.id).getContext('2d');
+      target.clearRect(0, 0, canvas.width, canvas.height);
+      for (const stroke of item.strokes) paintStroke(target, stroke);
+    }
     render();
   }
 
@@ -366,7 +492,7 @@ function start() {
     if (x < 0 || y < 0 || x >= paper.width || y >= paper.height) return;
     const color = drawingColor;
     const rgb = [1, 3, 5].map(index => parseInt(color.slice(index, index + 2), 16));
-    const image = paperContext.getImageData(0, 0, paper.width, paper.height);
+    const image = layerSurface(selectedLayerId).getContext('2d').getImageData(0, 0, paper.width, paper.height);
     const offset = (y * paper.width + x) * 4;
     if (image.data[offset + 3] === 255 && rgb.every((value, index) => image.data[offset + index] === value)) return;
     const spans = findFillSpans(image, x, y);
@@ -387,9 +513,7 @@ function start() {
     for (const [start, row, end] of spans) patchContext.fillRect(start - left, row - top, end - start + 1, 1);
     const stroke = { type: 'bucket', patch, x: left / scale, y: top / scale,
       width: patch.width / scale, height: patch.height / scale };
-    strokes.push(stroke);
-    recordAction({ type: 'stroke', stroke });
-    paintStroke(paperContext, stroke);
+    appendStroke(stroke);
     render();
     updateHistoryButtons();
   }
@@ -408,9 +532,7 @@ function start() {
   function finish() {
     if (activeStroke) {
       if (!isShape(activeStroke.type) || hasShapeSize(activeStroke)) {
-        strokes.push(activeStroke);
-        recordAction({ type: 'stroke', stroke: activeStroke });
-        paintStroke(paperContext, activeStroke);
+        appendStroke(activeStroke, activeStroke.layerId);
       }
       activeStroke = null;
       render();
@@ -442,7 +564,7 @@ function start() {
     finishText();
     const initialText = pendingMath;
     clearPendingMath();
-    textDraft = { x, y, size: widths.text, color: drawingColor };
+    textDraft = { x, y, size: widths.text, color: drawingColor, layerId: selectedLayerId };
     textInput.value = initialText;
     textInput.style.fontSize = `${textDraft.size}px`;
     textInput.style.color = textDraft.color;
@@ -458,9 +580,7 @@ function start() {
     if (commit && textInput.value.trim()) {
       const stroke = { type: 'text', text: textInput.value.replace(/\r\n?/g, '\n'),
         width: textDraft.size, color: textDraft.color, points: [textDraft.position] };
-      strokes.push(stroke);
-      recordAction({ type: 'stroke', stroke });
-      paintStroke(paperContext, stroke);
+      appendStroke(stroke, textDraft.layerId);
     }
     textDraft = null;
     textInput.value = '';
@@ -504,7 +624,7 @@ function start() {
     }
     pointer = event.pointerId;
     canvas.setPointerCapture(pointer);
-    activeStroke = { type, width: widths[type], color: drawingColor, points: [] };
+    activeStroke = { type, width: widths[type], color: drawingColor, points: [], layerId: selectedLayerId };
     appendPoint(event);
     render();
     updateHistoryButtons();
@@ -533,9 +653,10 @@ function start() {
     clearPendingMath();
     finishText();
     finish();
-    if (strokes.length === 0) return;
-    recordAction({ type: 'clear', strokes: strokes.slice() });
-    strokes = [];
+    if (!layers.some(item => item.strokes.length)) return;
+    const before = snapshot();
+    for (const item of layers) item.strokes = [];
+    recordAction(before);
     rebuildPaper();
     updateHistoryButtons();
   };
@@ -545,11 +666,8 @@ function start() {
     finish();
     const action = undoHistory.pop();
     if (!action) return;
-    if (action.type === 'stroke') strokes.pop();
-    else strokes = action.strokes.slice();
     redoHistory.push(action);
-    rebuildPaper();
-    updateHistoryButtons();
+    restoreSnapshot(action.before);
   };
   redoButton.onclick = () => {
     clearPendingMath();
@@ -557,11 +675,8 @@ function start() {
     finish();
     const action = redoHistory.pop();
     if (!action) return;
-    if (action.type === 'stroke') strokes.push(action.stroke);
-    else strokes = [];
     undoHistory.push(action);
-    rebuildPaper();
-    updateHistoryButtons();
+    restoreSnapshot(action.after);
   };
 
   document.addEventListener('keydown', (event) => {
@@ -589,7 +704,9 @@ function start() {
   window.addEventListener('resize', resize);
   resize();
   showWidth();
+  updateLayers();
   document.querySelector('#tools').disabled = false;
+  document.querySelector('#layer-add').disabled = false;
   updateHistoryButtons();
 }
 
