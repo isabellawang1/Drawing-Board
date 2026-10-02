@@ -11,7 +11,7 @@ In order of priority I think??
 - [x] Text boxes with adjustable size and color.
 - [x] Math dropdown with sigma and other symbols.
 - [x] Custom color picker for colors beyond the preset palette.
-- [ ] Zoom in & out.
+- [x] Zoom in & out, with reset and panning.
 - [ ] Eyedropper to pick a color from the drawing.
 
 - [x] Layers: add and select layers from a sidebar on the right.

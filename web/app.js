@@ -42,6 +42,17 @@ function findFillSpans(image, x, y) {
 function start() {
   const canvas = document.querySelector('canvas');
   const context = canvas.getContext('2d');
+  const viewport = document.querySelector('#canvas-viewport');
+  const extent = document.querySelector('#canvas-extent');
+  const board = document.querySelector('#canvas-board');
+  const zoomOut = document.querySelector('#zoom-out');
+  const zoomIn = document.querySelector('#zoom-in');
+  const zoomReset = document.querySelector('#zoom-reset');
+  const panButton = document.querySelector('#pan');
+  const zoomLevels = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+  let zoom = 1;
+  let boardWidth = 0, boardHeight = 0;
+  let panMode = false, panStart = null;
   const paper = document.createElement('canvas'); // Selected layer with an in-progress stroke.
   const paperContext = paper.getContext('2d');
   const layer = document.createElement('canvas'); // One stroke, before applying opacity.
@@ -608,11 +619,57 @@ function start() {
     }
   }
 
+  function drawingPoint(event) {
+    const bounds = canvas.getBoundingClientRect();
+    return { x: (event.clientX - bounds.left) / zoom, y: (event.clientY - bounds.top) / zoom };
+  }
+
+  function layoutView() {
+    const left = Math.max(0, (viewport.clientWidth - boardWidth * zoom) / 2);
+    const top = Math.max(0, (viewport.clientHeight - boardHeight * zoom) / 2);
+    extent.style.width = `${Math.max(viewport.clientWidth, boardWidth * zoom)}px`;
+    extent.style.height = `${Math.max(viewport.clientHeight, boardHeight * zoom)}px`;
+    board.style.width = `${boardWidth}px`;
+    board.style.height = `${boardHeight}px`;
+    board.style.transform = `translate(${left}px, ${top}px) scale(${zoom})`;
+    zoomReset.textContent = `${Math.round(zoom * 100)}%`;
+    zoomReset.setAttribute('aria-label', `Zoom ${Math.round(zoom * 100)}%. Reset view to 100%`);
+    zoomOut.disabled = zoom === zoomLevels[0];
+    zoomIn.disabled = zoom === zoomLevels.at(-1);
+    return { left, top };
+  }
+
+  function changeZoom(next, reset = false) {
+    if (next === zoom && !reset) return;
+    finish();
+    const bounds = viewport.getBoundingClientRect();
+    const center = drawingPoint({ clientX: bounds.left + viewport.clientWidth / 2,
+      clientY: bounds.top + viewport.clientHeight / 2 });
+    zoom = next;
+    const offset = layoutView();
+    viewport.scrollLeft = reset ? 0 : center.x * zoom + offset.left - viewport.clientWidth / 2;
+    viewport.scrollTop = reset ? 0 : center.y * zoom + offset.top - viewport.clientHeight / 2;
+  }
+  zoomOut.onclick = () => changeZoom(zoomLevels[Math.max(0, zoomLevels.indexOf(zoom) - 1)]);
+  zoomIn.onclick = () => changeZoom(zoomLevels[Math.min(zoomLevels.length - 1, zoomLevels.indexOf(zoom) + 1)]);
+  zoomReset.onclick = () => changeZoom(1, true);
+  panButton.onclick = () => {
+    finish();
+    finishText();
+    panMode = !panMode;
+    canvas.dataset.pan = String(panMode);
+    panButton.setAttribute('aria-pressed', String(panMode));
+  };
+
   function resize() {
+    // Keep artwork reachable when the window shrinks; enlarge the board as needed.
+    boardWidth = Math.max(boardWidth, viewport.clientWidth);
+    boardHeight = Math.max(boardHeight, viewport.clientHeight);
+    layoutView();
     const scale = window.devicePixelRatio || 1;
     for (const surface of [canvas, paper, layer]) {
-      surface.width = Math.round(canvas.clientWidth * scale);
-      surface.height = Math.round(canvas.clientHeight * scale);
+      surface.width = Math.round(boardWidth * scale);
+      surface.height = Math.round(boardHeight * scale);
     }
     layerContext.setTransform(scale, 0, 0, scale, 0, 0);
     rebuildPaper();
@@ -632,10 +689,10 @@ function start() {
   }
 
   function fillArea(event) {
-    const bounds = canvas.getBoundingClientRect();
+    const point = drawingPoint(event);
     const scale = window.devicePixelRatio || 1;
-    const x = Math.floor((event.clientX - bounds.left) * scale);
-    const y = Math.floor((event.clientY - bounds.top) * scale);
+    const x = Math.floor(point.x * scale);
+    const y = Math.floor(point.y * scale);
     if (x < 0 || y < 0 || x >= paper.width || y >= paper.height) return;
     const color = drawingColor;
     const rgb = [1, 3, 5].map(index => parseInt(color.slice(index, index + 2), 16));
@@ -666,9 +723,8 @@ function start() {
   }
 
   function appendPoint(event) {
-    const bounds = canvas.getBoundingClientRect();
     const previous = activeStroke.points.at(-1);
-    const x = event.clientX - bounds.left, y = event.clientY - bounds.top;
+    const { x, y } = drawingPoint(event);
     if (previous && x === previous.x && y === previous.y) return;
     const point = { x, y, width: activeStroke.width };
     // Shapes keep their starting point and replace the preview endpoint as you drag.
@@ -677,6 +733,8 @@ function start() {
   }
 
   function finish() {
+    panStart = null;
+    canvas.dataset.panning = 'false';
     if (activeStroke) {
       if (!isShape(activeStroke.type) || hasShapeSize(activeStroke)) {
         appendStroke(activeStroke, activeStroke.layerId);
@@ -751,9 +809,12 @@ function start() {
     }
   };
   canvas.onkeydown = (event) => {
-    if (selectedTool() === 'text' && event.key === 'Enter') {
+    if (!panMode && selectedTool() === 'text' && event.key === 'Enter') {
       event.preventDefault();
-      beginText(canvas.clientWidth / 2, canvas.clientHeight / 2);
+      const bounds = viewport.getBoundingClientRect();
+      const point = drawingPoint({ clientX: bounds.left + viewport.clientWidth / 2,
+        clientY: bounds.top + viewport.clientHeight / 2 });
+      beginText(point.x, point.y);
     }
   };
 
@@ -762,6 +823,13 @@ function start() {
     event.preventDefault();
     finishLayerRename();
     finishText();
+    if (panMode) {
+      pointer = event.pointerId;
+      panStart = { x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
+      canvas.dataset.panning = 'true';
+      canvas.setPointerCapture(pointer);
+      return;
+    }
     if (!selectedLayer().visible) return;
     const type = selectedTool();
     if (type === 'bucket') {
@@ -769,8 +837,8 @@ function start() {
       return;
     }
     if (type === 'text') {
-      const bounds = canvas.getBoundingClientRect();
-      beginText(event.clientX - bounds.left, event.clientY - bounds.top);
+      const point = drawingPoint(event);
+      beginText(point.x, point.y);
       return;
     }
     pointer = event.pointerId;
@@ -782,13 +850,18 @@ function start() {
   };
   canvas.onpointermove = (event) => {
     if (event.pointerId !== pointer) return;
+    if (panStart) {
+      viewport.scrollLeft = panStart.left - (event.clientX - panStart.x);
+      viewport.scrollTop = panStart.top - (event.clientY - panStart.y);
+      return;
+    }
     const samples = event.getCoalescedEvents?.();
     for (const sample of samples?.length ? samples : [event]) appendPoint(sample);
     render();
   };
   canvas.onpointerup = (event) => {
     if (event.pointerId !== pointer) return;
-    appendPoint(event);
+    if (!panStart) appendPoint(event);
     finish();
   };
   canvas.onpointercancel = canvas.onlostpointercapture = (event) => {
@@ -854,7 +927,7 @@ function start() {
     }
   });
 
-  new ResizeObserver(resize).observe(canvas);
+  new ResizeObserver(resize).observe(viewport);
   window.addEventListener('resize', resize);
   resize();
   showWidth();

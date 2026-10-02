@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=layers-6" defer></script>
+  <script src="app.js?v=zoom-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
@@ -19,10 +19,22 @@
     button:disabled { color: #bbb; cursor: default; }
     svg { width: 19px; height: 19px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
     main { flex: 1; min-height: 0; min-width: 0; position: relative; z-index: 0; }
+    #canvas-viewport { position: absolute; inset: 0; overflow: auto; overscroll-behavior: contain; background: #eee; }
+    #canvas-extent { position: relative; overflow: hidden; }
+    #canvas-board { position: absolute; left: 0; top: 0; transform-origin: top left; background: #fff; overflow: hidden; }
+    .zoom-controls { position: absolute; left: 12px; bottom: 12px; z-index: 3; display: flex; padding: 2px; border-radius: 8px; background: #000; color: #fff; box-shadow: 0 2px 10px #0002; }
+    .zoom-controls button { min-width: 34px; min-height: 36px; padding: 4px; }
+    .zoom-controls button:hover:enabled, #pan[aria-pressed="true"] { background: #333; }
+    .zoom-controls button:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+    #zoom-reset { min-width: 54px; font-size: 12px; font-variant-numeric: tabular-nums; }
+    #zoom-out, #zoom-in { font-size: 20px; }
+    #pan { display: grid; place-items: center; }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
     canvas[data-tool="text"] { cursor: text; }
     canvas[data-layer-hidden="true"] { cursor: not-allowed; }
-    #layer-hint { position: absolute; left: 12px; bottom: 12px; margin: 0; padding: 8px 12px; max-width: calc(100% - 144px); background: #f4f4f4; border-radius: 4px; font-size: 12px; pointer-events: none; }
+    canvas[data-pan="true"] { cursor: grab; }
+    canvas[data-panning="true"] { cursor: grabbing; }
+    #layer-hint { position: absolute; left: 12px; bottom: 64px; margin: 0; padding: 8px 12px; max-width: calc(100% - 24px); background: #f4f4f4; border-radius: 4px; font-size: 12px; pointer-events: none; }
     .text-editor { position: absolute; z-index: 2; display: flex; flex-direction: column; background: #fff; border: 1px dashed #777; box-shadow: 0 2px 12px #0001; }
     .text-editor[hidden] { display: none; }
     #text-input { flex: 1; min-height: 0; width: 100%; padding: 8px; border: 0; outline: 0; resize: none; background: transparent; font: 24px/1.3 system-ui, sans-serif; }
@@ -186,7 +198,29 @@
     </div>
   </header>
   <main aria-label="Drawing area">
-    <canvas aria-label="Drag to draw, select Bucket and click to fill, or select Text and click to type." tabindex="0"></canvas>
+    <div id="canvas-viewport">
+      <div id="canvas-extent">
+        <div id="canvas-board">
+          <canvas aria-label="Drag to draw, select Bucket and click to fill, or select Text and click to type." tabindex="0"></canvas>
+          <div id="text-editor" class="text-editor" hidden>
+            <textarea id="text-input" aria-label="Text to place on the drawing" aria-describedby="text-help" placeholder="Type here…" wrap="off" spellcheck="false"></textarea>
+            <span id="text-help" class="sr-only">Enter adds a new line. Command or Control Enter places the text. Escape cancels.</span>
+            <div class="text-actions">
+              <button id="text-cancel" type="button">Cancel</button>
+              <button id="text-done" type="button">Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="zoom-controls" role="group" aria-label="Canvas view">
+      <button id="zoom-out" type="button" aria-label="Zoom out" title="Zoom out" disabled>−</button>
+      <button id="zoom-reset" type="button" aria-label="Zoom 100%. Reset view to 100%" title="Reset view to 100%">100%</button>
+      <button id="zoom-in" type="button" aria-label="Zoom in" title="Zoom in" disabled>+</button>
+      <button id="pan" type="button" aria-label="Pan canvas" aria-pressed="false" title="Pan: drag to move around, then turn off to draw">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12V5a2 2 0 0 1 4 0v7-9a2 2 0 0 1 4 0v9-6a2 2 0 0 1 4 0v10c0 4-2 6-6 6h-1c-3 0-4-1-6-4l-4-6a2 2 0 0 1 3-2l2 2Z"/></svg>
+      </button>
+    </div>
     <p id="math-hint" role="status" hidden></p>
     <p id="layer-hint" role="status" hidden></p>
     <details id="layers-picker" class="layers-picker">
@@ -221,14 +255,7 @@
       <p class="layers-hint">Select a layer to draw or reorder. Top layers appear in front. Undo restores changes.</p>
     </aside>
     </details>
-    <div id="text-editor" class="text-editor" hidden>
-      <textarea id="text-input" aria-label="Text to place on the drawing" aria-describedby="text-help" placeholder="Type here…" wrap="off" spellcheck="false"></textarea>
-      <span id="text-help" class="sr-only">Enter adds a new line. Command or Control Enter places the text. Escape cancels.</span>
-      <div class="text-actions">
-        <button id="text-cancel" type="button">Cancel</button>
-        <button id="text-done" type="button">Done</button>
-      </div>
-    </div>
+
   </main>
   <footer class="toolbox" aria-label="Drawing controls">
     <fieldset id="tools" disabled>

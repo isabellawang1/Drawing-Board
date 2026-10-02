@@ -11,6 +11,16 @@ be placed.
 Click **Shapes** to choose Line, Rectangle, or Circle from the menu above it.
 Undo, Redo, and Clear All are in the top bar.
 
+Use **−** and **+** at the bottom left of the drawing area to zoom from 25% to
+400%. Click the percentage to reset to 100% and return to the top left.
+Zooming keeps the center of your view in place. Use the **hand** button to drag
+around a zoomed drawing with a mouse, finger, or stylus; click it again to resume
+drawing. You can also use the scrollbars or a trackpad to move around.
+
+Zoom and pan only change the view, so they do not add Undo steps. Strokes, shapes,
+text, and fills keep their drawing size and position. The board stays accessible
+by scrolling if you make the window smaller.
+
 Click **Layers** on the right of the drawing area to open the sidebar. Use
 **Add layer** to create a new layer above the others, then click a layer to select
 it. The selected layer receives all drawing, text, erasing, and bucket fills.
@@ -85,4 +95,4 @@ Visit http://localhost:8080. If the server is already running, just refresh.
 After editing either file, refresh the page. No compiler, dependencies, or build
 step is needed.
 
-Run the bucket fill tests with `node --test tests/bucket.test.cjs`.
+Run the bucket fill and zoom tests with `node --test tests/*.test.cjs`.
