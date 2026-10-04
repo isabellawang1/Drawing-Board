@@ -70,6 +70,9 @@ Click the thing to choose a **custom color**, including white. Custom
 colors work with Marker, Highlighter, Bucket, Shapes, Text, and Math symbols.
 The picker remembers your last custom color while the page is open; click it
 again to reuse or change that color. Changing color also updates an open text box.
+Click the **eyedropper** beside the palette, then click or tap the drawing to reuse
+a visible color. It samples all visible layers against the white background, then
+returns to your drawing tool. Press Escape to cancel.
 Use the **Width** slider for sizes from 1–50 pixels. Each drawing tool
 remember their own size while the page is open.
 Use a mouse, finger, or stylus. Drawings stay in memory until you refresh or close

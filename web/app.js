@@ -81,6 +81,9 @@ function start() {
   const textInput = document.querySelector('#text-input');
   const presetColors = [...document.querySelectorAll('input[name="color"]')];
   const customColor = document.querySelector('#custom-color');
+  const eyedropper = document.querySelector('#eyedropper');
+  const colorHint = document.querySelector('#color-hint');
+  let pickingColor = false;
   let drawingColor = presetColors.find(input => input.checked).value;
   const widths = { marker: 5, highlighter: 20, eraser: 20, line: 5, rectangle: 5, circle: 5, text: 24 };
   const widthInput = document.querySelector('#brush-width');
@@ -374,6 +377,7 @@ function start() {
   }
 
   function showWidth() {
+    setPickingColor(false);
     const tool = selectedTool();
     const width = widths[tool] || widths.marker;
     widthInput.disabled = tool === 'bucket';
@@ -404,6 +408,7 @@ function start() {
     };
   }
   function selectColor(value, custom = false) {
+    setPickingColor(false);
     drawingColor = value;
     for (const preset of presetColors) preset.checked = !custom && preset.value === value;
     customColor.dataset.active = String(custom);
@@ -418,6 +423,40 @@ function start() {
   customColor.oninput = customColor.onchange = useCustomColor;
   // Reuse the last custom color even when the picker opens without changing it.
   customColor.onclick = useCustomColor;
+
+  function setPickingColor(active) {
+    pickingColor = active;
+    eyedropper.setAttribute('aria-pressed', String(active));
+    canvas.dataset.eyedropper = String(active);
+    colorHint.hidden = !active;
+    if (active) colorHint.textContent = 'Click or tap the drawing to pick a color. Esc to cancel.';
+  }
+
+  eyedropper.onclick = () => {
+    finish();
+    finishText();
+    clearPendingMath();
+    closeShapes();
+    closeMath();
+    panMode = false;
+    canvas.dataset.pan = 'false';
+    panButton.setAttribute('aria-pressed', 'false');
+    setPickingColor(!pickingColor);
+    canvas.focus({ preventScroll: true });
+  };
+
+  function pickColor(event) {
+    const point = drawingPoint(event);
+    const scale = window.devicePixelRatio || 1;
+    const x = Math.floor(point.x * scale), y = Math.floor(point.y * scale);
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
+    // Sample all visible layers and composite transparency onto the white board.
+    const pixel = context.getImageData(x, y, 1, 1).data;
+    customColor.value = '#' + [0, 1, 2].map(channel =>
+      Math.round(255 + (pixel[channel] - 255) * pixel[3] / 255).toString(16).padStart(2, '0')
+    ).join('');
+    useCustomColor();
+  }
 
   function closeShapes(restoreFocus = false) {
     shapePicker.open = false;
@@ -654,6 +693,7 @@ function start() {
   zoomIn.onclick = () => changeZoom(zoomLevels[Math.min(zoomLevels.length - 1, zoomLevels.indexOf(zoom) + 1)]);
   zoomReset.onclick = () => changeZoom(1, true);
   panButton.onclick = () => {
+    setPickingColor(false);
     finish();
     finishText();
     panMode = !panMode;
@@ -809,7 +849,7 @@ function start() {
     }
   };
   canvas.onkeydown = (event) => {
-    if (!panMode && selectedTool() === 'text' && event.key === 'Enter') {
+    if (!pickingColor && !panMode && selectedTool() === 'text' && event.key === 'Enter') {
       event.preventDefault();
       const bounds = viewport.getBoundingClientRect();
       const point = drawingPoint({ clientX: bounds.left + viewport.clientWidth / 2,
@@ -828,6 +868,10 @@ function start() {
       panStart = { x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
       canvas.dataset.panning = 'true';
       canvas.setPointerCapture(pointer);
+      return;
+    }
+    if (pickingColor) {
+      pickColor(event);
       return;
     }
     if (!selectedLayer().visible) return;
@@ -907,6 +951,11 @@ function start() {
   };
 
   document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && pickingColor) {
+      event.preventDefault();
+      setPickingColor(false);
+      return;
+    }
     if (event.key === 'Escape' && pendingMath) {
       event.preventDefault();
       clearPendingMath();
