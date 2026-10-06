@@ -75,8 +75,11 @@ a visible color. It samples all visible layers against the white background, the
 returns to your drawing tool. Press Escape to cancel.
 Use the **Width** slider for sizes from 1–50 pixels. Each drawing tool
 remember their own size while the page is open.
-Use a mouse, finger, or stylus. Drawings stay in memory until you refresh or close
-the page.
+Use a mouse, finger, or stylus. Drawings and layers save automatically in this browser after each edit and restore
+when you refresh or reopen the same page. The top bar shows **Saved**, or **Not saved**
+if browser storage is unavailable or full. Autosave includes hidden layers, layer
+names and order, bucket fills, and the selected layer. Undo/Redo history resets
+when the page reopens. Clearing browser data removes the saved drawing.
 
 ## Open the website
 

@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=dropper-1" defer></script>
+  <script src="app.js?v=autosave-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
     .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 0 20px; border-bottom: 1px solid #eee; }
+    .board-heading { min-width: 0; }
+    #save-status { font-size: 11px; color: #777; font-weight: 400; }
     h1 { margin: 0; font-size: 14px; font-weight: 500; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     button, summary { font: inherit; color: inherit; cursor: pointer; }
     button { border: 0; background: transparent; }
@@ -186,7 +188,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1 title="Your very own drawing board!">Your very own drawing board!</h1>
+    <div class="board-heading"><h1 title="Your very own drawing board!">Your very own drawing board!</h1><span id="save-status" role="status" title="Drawings save in this browser">Autosave on</span></div>
     <div class="history" role="group" aria-label="Drawing history">
     <button id="undo" aria-label="Undo" type="button" title="Undo (⌘/Ctrl+Z)" disabled>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -2)"/></svg>

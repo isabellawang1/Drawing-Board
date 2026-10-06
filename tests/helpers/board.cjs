@@ -3,7 +3,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 // A small DOM/canvas double for checking artwork coordinates and UI actions.
-module.exports = function createBoard(scale = 1) {
+module.exports = function createBoard(scale = 1, storage = new Map()) {
   let document;
   class Element {
     constructor() {
@@ -88,13 +88,14 @@ module.exports = function createBoard(scale = 1) {
       width: canvas.clientWidth * zoom, height: canvas.clientHeight * zoom };
   };
   const window = new Element(); window.devicePixelRatio = scale;
+  window.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
   let resize;
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../web/app.js'), 'utf8'), {
     document, window, ResizeObserver: class { constructor(fn) { resize = fn; } observe() {} }
   });
   const event = (x, y) => ({ pointerId: 1, isPrimary: true, button: 0, clientX: x + 40, clientY: y + 56, preventDefault() {} });
   return {
-    nodes, canvas, viewport, document, event, resize: () => resize(),
+    nodes, canvas, viewport, document, window, event, resize: () => resize(),
     click: id => nodes[id].onclick(),
     tool: name => { selected = tools.find(tool => tool.value === name); },
     image: factory => { imageFactory = factory; },

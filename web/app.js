@@ -102,6 +102,74 @@ function start() {
   let pendingMath = '';
   let focusMathOnOpen = false;
 
+  const saveKey = 'drawing-board.autosave.v1';
+  const saveStatus = document.querySelector('#save-status');
+
+  function saveDrawing() {
+    try {
+      const data = { version: 1, boardWidth, boardHeight, nextLayerId, selectedLayerId,
+        layers: layers.map(item => ({ ...item, strokes: item.strokes.map(({ patch, ...stroke }) => stroke) })) };
+      window.localStorage.setItem(saveKey, JSON.stringify(data));
+      saveStatus.textContent = 'Saved';
+      saveStatus.title = 'Saved in this browser';
+    } catch (error) {
+      saveStatus.textContent = 'Not saved';
+      saveStatus.title = 'Browser storage is unavailable or full. Keep this page open to retain your drawing.';
+    }
+  }
+
+  function loadDrawing() {
+    try {
+      const raw = window.localStorage.getItem(saveKey);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      const positive = value => Number.isFinite(value) && value > 0;
+      const coordinate = value => Number.isFinite(value);
+      if (data.version !== 1 || !positive(data.boardWidth) || !positive(data.boardHeight) ||
+          !Array.isArray(data.layers) || !data.layers.length) throw new Error('Invalid drawing');
+      const ids = new Set();
+      for (const item of data.layers) {
+        if (!Number.isSafeInteger(item.id) || item.id < 1 || ids.has(item.id) ||
+            typeof item.name !== 'string' || typeof item.visible !== 'boolean' ||
+            !Array.isArray(item.strokes)) throw new Error('Invalid layer');
+        ids.add(item.id);
+        for (const stroke of item.strokes) {
+          if (!positive(stroke.width)) throw new Error('Invalid stroke');
+          if (stroke.type === 'bucket') {
+            const fill = stroke.fill;
+            if (!coordinate(stroke.x) || !coordinate(stroke.y) || !positive(stroke.height) ||
+                !fill || !positive(fill.width) || !positive(fill.height) || typeof fill.color !== 'string' ||
+                !Array.isArray(fill.spans) || !fill.spans.every(span => Array.isArray(span) &&
+                  span.length === 3 && span.every(coordinate))) throw new Error('Invalid fill');
+            const patch = document.createElement('canvas');
+            patch.width = fill.width;
+            patch.height = fill.height;
+            const target = patch.getContext('2d');
+            target.fillStyle = fill.color;
+            for (const [left, row, right] of fill.spans) target.fillRect(left, row, right - left + 1, 1);
+            stroke.patch = patch;
+          } else if (!['marker', 'highlighter', 'eraser', 'line', 'rectangle', 'circle', 'text'].includes(stroke.type) ||
+              typeof stroke.color !== 'string' || !Array.isArray(stroke.points) || !stroke.points.length ||
+              !stroke.points.every(point => coordinate(point.x) && coordinate(point.y) &&
+                (point.width === undefined || positive(point.width))) ||
+              (stroke.type === 'text' && typeof stroke.text !== 'string')) throw new Error('Invalid stroke');
+        }
+      }
+      if (!ids.has(data.selectedLayerId) || !Number.isSafeInteger(data.nextLayerId) ||
+          data.nextLayerId <= Math.max(...ids)) throw new Error('Invalid selection');
+      layers = data.layers;
+      selectedLayerId = data.selectedLayerId;
+      nextLayerId = data.nextLayerId;
+      boardWidth = data.boardWidth;
+      boardHeight = data.boardHeight;
+      saveStatus.textContent = 'Saved';
+      saveStatus.title = 'Restored from this browser';
+    } catch (error) {
+      saveStatus.textContent = 'Not restored';
+      saveStatus.title = 'The saved drawing could not be read. New edits will replace it.';
+    }
+  }
+
   function updateHistoryButtons() {
     const pending = !!activeStroke || !!(textDraft && textInput.value.trim());
     undoButton.disabled = undoHistory.length === 0 && !pending;
@@ -117,6 +185,7 @@ function start() {
   function recordAction(before) {
     undoHistory.push({ before, after: snapshot() });
     redoHistory.length = 0;
+    saveDrawing();
   }
 
   function selectedLayer() {
@@ -176,6 +245,7 @@ function start() {
       button.onclick = () => {
         settleDrawing();
         selectedLayerId = item.id;
+        saveDrawing();
         updateLayers();
         layerList.querySelector(`[data-layer-id="${item.id}"]`).focus({ preventScroll: true });
       };
@@ -356,6 +426,7 @@ function start() {
   function restoreSnapshot(state) {
     layers = state.layers.map(item => ({ ...item }));
     selectedLayerId = state.selectedLayerId;
+    saveDrawing();
     rebuildPaper();
     updateLayers();
     updateHistoryButtons();
@@ -756,7 +827,9 @@ function start() {
     patchContext.fillStyle = color;
     for (const [start, row, end] of spans) patchContext.fillRect(start - left, row - top, end - start + 1, 1);
     const stroke = { type: 'bucket', patch, x: left / scale, y: top / scale,
-      width: patch.width / scale, height: patch.height / scale };
+      width: patch.width / scale, height: patch.height / scale,
+      fill: { width: patch.width, height: patch.height, color,
+        spans: spans.map(([start, row, end]) => [start - left, row - top, end - left]) } };
     appendStroke(stroke);
     render();
     updateHistoryButtons();
@@ -976,6 +1049,17 @@ function start() {
     }
   });
 
+  // Commit pending text and strokes before the page is hidden or closed.
+  const saveBeforeLeaving = () => {
+    settleDrawing();
+    // Do not overwrite an unreadable save merely by opening and closing the page.
+    if (saveStatus.textContent === 'Saved') saveDrawing();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveBeforeLeaving();
+  });
+  window.addEventListener('pagehide', saveBeforeLeaving);
+  loadDrawing();
   new ResizeObserver(resize).observe(viewport);
   window.addEventListener('resize', resize);
   resize();

@@ -21,4 +21,4 @@ In order of priority I think??
 - [x] Reorder layers with Move up and Move down, with Undo and Redo.
 - [ ] Import an image to draw over.
 - [ ] Save a drawing as a PNG image.
-- [ ] Autosave locally so refreshing doesn't lose the drawing.
+- [x] Autosave locally so refreshing doesn't lose the drawing.
