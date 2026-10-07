@@ -86,6 +86,9 @@ function start() {
   let pickingColor = false;
   let drawingColor = presetColors.find(input => input.checked).value;
   const widths = { marker: 5, highlighter: 20, eraser: 20, line: 5, rectangle: 5, circle: 5, text: 24 };
+  const opacities = { marker: 100, highlighter: 30, eraser: 100, bucket: 100, line: 100, rectangle: 100, circle: 100, text: 100 };
+  const opacityInput = document.querySelector('#brush-opacity');
+  const opacityValue = document.querySelector('#opacity-value');
   const widthInput = document.querySelector('#brush-width');
   const widthValue = document.querySelector('#width-value');
   const widthLabel = document.querySelector('#width-label');
@@ -134,6 +137,8 @@ function start() {
             !Array.isArray(item.strokes)) throw new Error('Invalid layer');
         ids.add(item.id);
         for (const stroke of item.strokes) {
+          if (stroke.opacity !== undefined && (!Number.isFinite(stroke.opacity) ||
+              stroke.opacity < 0 || stroke.opacity > 1)) throw new Error('Invalid opacity');
           if (!positive(stroke.width)) throw new Error('Invalid stroke');
           if (stroke.type === 'bucket') {
             const fill = stroke.fill;
@@ -451,6 +456,9 @@ function start() {
     setPickingColor(false);
     const tool = selectedTool();
     const width = widths[tool] || widths.marker;
+    opacityInput.value = opacities[tool];
+    opacityValue.value = `${opacities[tool]}%`;
+    opacityInput.setAttribute('aria-valuetext', `${opacities[tool]} percent`);
     widthInput.disabled = tool === 'bucket';
     widthInput.min = tool === 'text' ? 8 : 1;
     widthInput.max = tool === 'text' ? 72 : 50;
@@ -463,6 +471,14 @@ function start() {
     shapeToggle.setAttribute('aria-label', isShape(tool) ? `Shapes: ${tool}` : 'Shapes');
     canvas.dataset.tool = tool;
   }
+  opacityInput.oninput = () => {
+    opacities[selectedTool()] = Number(opacityInput.value);
+    if (textDraft) {
+      textDraft.opacity = opacities.text / 100;
+      textInput.style.opacity = textDraft.opacity;
+    }
+    showWidth();
+  };
   widthInput.oninput = () => {
     widths[selectedTool()] = Number(widthInput.value);
     if (textDraft) {
@@ -656,12 +672,13 @@ function start() {
     layerContext.fill();
   }
 
-  // Build an opaque stroke first, so highlighter segments don't darken at every join.
+  // Apply opacity to the whole stroke so segments don't darken at every join.
   function paintStroke(target, stroke) {
     if (stroke.type === 'bucket') {
       const scale = window.devicePixelRatio || 1;
       target.save();
       target.setTransform(scale, 0, 0, scale, 0, 0);
+      target.globalAlpha = stroke.opacity ?? 1;
       target.drawImage(stroke.patch, stroke.x, stroke.y, stroke.width, stroke.height);
       target.restore();
       return;
@@ -708,7 +725,7 @@ function start() {
     }
     target.save();
     target.setTransform(1, 0, 0, 1, 0, 0);
-    target.globalAlpha = stroke.type === 'highlighter' ? 0.3 : 1;
+    target.globalAlpha = stroke.opacity ?? (stroke.type === 'highlighter' ? 0.3 : 1);
     target.globalCompositeOperation = stroke.type === 'eraser' ? 'destination-out' : 'source-over';
     target.drawImage(layer, 0, 0);
     target.restore();
@@ -826,7 +843,7 @@ function start() {
     const patchContext = patch.getContext('2d');
     patchContext.fillStyle = color;
     for (const [start, row, end] of spans) patchContext.fillRect(start - left, row - top, end - start + 1, 1);
-    const stroke = { type: 'bucket', patch, x: left / scale, y: top / scale,
+    const stroke = { type: 'bucket', opacity: opacities.bucket / 100, patch, x: left / scale, y: top / scale,
       width: patch.width / scale, height: patch.height / scale,
       fill: { width: patch.width, height: patch.height, color,
         spans: spans.map(([start, row, end]) => [start - left, row - top, end - left]) } };
@@ -884,10 +901,11 @@ function start() {
     if (!selectedLayer().visible) return;
     const initialText = pendingMath;
     clearPendingMath();
-    textDraft = { x, y, size: widths.text, color: drawingColor, layerId: selectedLayerId };
+    textDraft = { x, y, size: widths.text, color: drawingColor, opacity: opacities.text / 100, layerId: selectedLayerId };
     textInput.value = initialText;
     textInput.style.fontSize = `${textDraft.size}px`;
     textInput.style.color = textDraft.color;
+    textInput.style.opacity = textDraft.opacity;
     textEditor.hidden = false;
     positionTextEditor();
     textInput.focus({ preventScroll: true });
@@ -899,7 +917,7 @@ function start() {
     if (!textDraft) return;
     if (commit && textInput.value.trim()) {
       const stroke = { type: 'text', text: textInput.value.replace(/\r\n?/g, '\n'),
-        width: textDraft.size, color: textDraft.color, points: [textDraft.position] };
+        width: textDraft.size, color: textDraft.color, opacity: textDraft.opacity, points: [textDraft.position] };
       appendStroke(stroke, textDraft.layerId);
     }
     textDraft = null;
@@ -960,7 +978,7 @@ function start() {
     }
     pointer = event.pointerId;
     canvas.setPointerCapture(pointer);
-    activeStroke = { type, width: widths[type], color: drawingColor, points: [], layerId: selectedLayerId };
+    activeStroke = { type, opacity: opacities[type] / 100, width: widths[type], color: drawingColor, points: [], layerId: selectedLayerId };
     appendPoint(event);
     render();
     updateHistoryButtons();

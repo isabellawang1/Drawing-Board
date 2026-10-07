@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=autosave-1" defer></script>
+  <script src="app.js?v=opacity-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
@@ -398,6 +398,11 @@
           <output id="width-value" for="brush-width">5 px</output>
         </div>
         <input id="brush-width" type="range" min="1" max="50" step="1" value="5" aria-valuetext="5 pixels">
+        <div class="width-heading">
+          <label for="brush-opacity">Opacity</label>
+          <output id="opacity-value" for="brush-opacity">100%</output>
+        </div>
+        <input id="brush-opacity" type="range" min="0" max="100" step="1" value="100" aria-valuetext="100 percent">
       </div>
     </div>
   </footer>

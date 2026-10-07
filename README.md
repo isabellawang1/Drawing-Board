@@ -75,6 +75,10 @@ a visible color. It samples all visible layers against the white background, the
 returns to your drawing tool. Press Escape to cancel.
 Use the **Width** slider for sizes from 1–50 pixels. Each drawing tool
 remember their own size while the page is open.
+Use the **Opacity** slider from 0–100% to control transparency for new strokes,
+shapes, fills, text, and math. For the eraser, lower opacity removes less paint.
+Each tool remembers its opacity while the page is open; Highlighter starts at 30%.
+Opacity also updates an open text box, and saved artwork keeps its transparency.
 Use a mouse, finger, or stylus. Drawings and layers save automatically in this browser after each edit and restore
 when you refresh or reopen the same page. The top bar shows **Saved**, or **Not saved**
 if browser storage is unavailable or full. Autosave includes hidden layers, layer
