@@ -25,8 +25,9 @@ Click **Layers** on the right of the drawing area to open the sidebar. Use
 **Add layer** to create a new layer above the others, then click a layer to select
 it. The selected layer receives all drawing, text, erasing, and bucket fills.
 
-Select a layer, then use **Move up** or **Move down** below the list to reorder
-it one position at a time. Layers higher in the list appear in front of lower
+Drag a layer by its name to reorder it, then release at the highlighted line.
+Drag near the list edges to scroll, or press Escape to cancel. With a layer
+focused, **Alt + ↑/↓** moves it one position at a time. Layers higher in the list appear in front of lower
 layers. Moving a layer preserves its artwork, name, visibility, and selection.
 Hidden layers can be reordered too.
 

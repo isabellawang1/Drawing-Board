@@ -70,8 +70,8 @@ function start() {
   const layersPicker = document.querySelector('#layers-picker');
   const layersPanel = document.querySelector('#layers-panel');
   const layerList = document.querySelector('#layer-list');
-  const layerUpButton = document.querySelector('#layer-up');
-  const layerDownButton = document.querySelector('#layer-down');
+  let layerDrag = null;
+  let suppressLayerClick = false;
   const layerHint = document.querySelector('#layer-hint');
   let layerRename = null;
   let activeStroke = null;
@@ -222,6 +222,7 @@ function start() {
   }
 
   function updateLayers() {
+    cancelLayerDrag();
     const focusedId = layerList.contains(document.activeElement) ? document.activeElement.dataset.layerId : null;
     const focusedControl = ['layer-remove', 'layer-rename', 'layer-rename-input', 'layer-visibility']
       .find(name => document.activeElement.classList.contains(name)) || 'layer-select';
@@ -229,6 +230,7 @@ function start() {
     for (const item of [...layers].reverse()) {
       const row = document.createElement('li');
       row.className = 'layer-row';
+      row.dataset.id = item.id;
       row.dataset.active = String(item.id === selectedLayerId);
       row.dataset.hidden = String(!item.visible);
       const button = document.createElement('button');
@@ -237,7 +239,20 @@ function start() {
       button.dataset.layerId = item.id;
       button.setAttribute('aria-pressed', String(item.id === selectedLayerId));
       button.setAttribute('aria-label', item.name);
-      button.title = item.name;
+      button.title = `${item.name} — drag to reorder, or use Alt + ↑/↓`;
+      button.setAttribute('aria-describedby', 'layer-drag-help');
+      button.onpointerdown = event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        suppressLayerClick = false;
+        if (layers.length < 2) return;
+        layerDrag = { id: item.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false };
+      };
+      button.onkeydown = event => {
+        if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        moveLayer(item.id, layers.findIndex(layer => layer.id === item.id) + (event.key === 'ArrowUp' ? 1 : -1));
+      };
       const name = document.createElement('span');
       name.className = 'layer-name';
       name.textContent = item.name;
@@ -247,7 +262,8 @@ function start() {
         ? (item.id === selectedLayerId ? 'Selected' : 'Click to draw on this layer')
         : (item.id === selectedLayerId ? 'Selected · Hidden' : 'Hidden');
       button.append(name, detail);
-      button.onclick = () => {
+      button.onclick = event => {
+        if (suppressLayerClick && event?.detail !== 0) return;
         settleDrawing();
         selectedLayerId = item.id;
         saveDrawing();
@@ -336,37 +352,103 @@ function start() {
       focusTarget.focus({ preventScroll: true });
     }
     const selected = selectedLayer();
-    const selectedIndex = layers.indexOf(selected);
-    layerUpButton.disabled = selectedIndex === layers.length - 1;
-    layerDownButton.disabled = selectedIndex === 0;
-    layerUpButton.title = `Move ${selected.name} up (toward the front)`;
-    layerDownButton.title = `Move ${selected.name} down (toward the back)`;
     layersToggle.title = selected.visible ? `Layers — drawing on ${selected.name}` : `Layers — ${selected.name} is hidden`;
     canvas.dataset.layerHidden = String(!selected.visible);
     layerHint.hidden = selected.visible;
     layerHint.textContent = selected.visible ? '' : `${selected.name} is hidden. Show it with the eye button or select a visible layer to draw.`;
   }
 
-  function moveSelectedLayer(direction) {
-    const index = layers.findIndex(item => item.id === selectedLayerId);
-    const target = index + direction;
-    if (target < 0 || target >= layers.length) return;
+  function moveLayer(id, target) {
+    const index = layers.findIndex(item => item.id === id);
+    if (index < 0 || target < 0 || target >= layers.length || index === target) return;
     settleDrawing();
     const before = snapshot();
-    [layers[index], layers[target]] = [layers[target], layers[index]];
+    const [item] = layers.splice(index, 1);
+    layers.splice(target, 0, item);
     recordAction(before);
     render();
     updateLayers();
     updateHistoryButtons();
-    const selectedButton = layerList.querySelector(`.layer-select[data-layer-id="${selectedLayerId}"]`);
-    selectedButton.scrollIntoView({ block: 'nearest' });
-    const moveButton = direction === 1 ? layerUpButton : layerDownButton;
-    (moveButton.disabled ? selectedButton : moveButton).focus({ preventScroll: true });
+    const button = layerList.querySelector(`.layer-select[data-layer-id="${id}"]`);
+    button.scrollIntoView({ block: 'nearest' });
+    button.focus({ preventScroll: true });
     document.querySelector('#layer-order-status').textContent =
-      `${selectedLayer().name} moved ${direction === 1 ? 'up' : 'down'}. Position ${layers.length - target} of ${layers.length}, front to back.`;
+      `${item.name} moved to position ${layers.length - target} of ${layers.length}, front to back.`;
   }
-  layerUpButton.onclick = () => moveSelectedLayer(1);
-  layerDownButton.onclick = () => moveSelectedLayer(-1);
+
+  function cancelLayerDrag() {
+    const drag = layerDrag;
+    layerDrag = null;
+    if (!drag) return;
+    for (const row of layerList.children) {
+      delete row.dataset.dragging;
+      delete row.dataset.drop;
+    }
+    if (layerList.hasPointerCapture(drag.pointerId)) layerList.releasePointerCapture(drag.pointerId);
+    if (drag.frame) window.cancelAnimationFrame(drag.frame);
+  }
+
+  function updateLayerDrop() {
+    const drag = layerDrag;
+    const bounds = layerList.getBoundingClientRect();
+    drag.inside = drag.x >= bounds.left && drag.x <= bounds.right && drag.y >= bounds.top && drag.y <= bounds.bottom;
+    const rows = [...layerList.children].filter(row => Number(row.dataset.id) !== drag.id);
+    for (const row of layerList.children) delete row.dataset.drop;
+    if (!drag.inside) return;
+    const slot = rows.findIndex(row => {
+      const rect = row.getBoundingClientRect();
+      return drag.y < rect.top + rect.height / 2;
+    });
+    const position = slot < 0 ? rows.length : slot;
+    drag.target = layers.length - 1 - position;
+    if (position < rows.length) rows[position].dataset.drop = 'before';
+    else rows[rows.length - 1].dataset.drop = 'after';
+  }
+
+  function scrollLayerDrag() {
+    if (!layerDrag?.active) return;
+    const bounds = layerList.getBoundingClientRect();
+    if (layerDrag.inside) {
+      const speed = layerDrag.y < bounds.top + 28 ? -6 : layerDrag.y > bounds.bottom - 28 ? 6 : 0;
+      if (speed) {
+        layerList.scrollTop += speed;
+        updateLayerDrop();
+      }
+    }
+    layerDrag.frame = window.requestAnimationFrame(scrollLayerDrag);
+  }
+
+  layerList.onpointermove = event => {
+    const drag = layerDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.active && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
+    if (!drag.active) {
+      drag.active = true;
+      suppressLayerClick = true;
+      layerList.setPointerCapture(event.pointerId);
+      for (const row of layerList.children) row.dataset.dragging = String(Number(row.dataset.id) === drag.id);
+      drag.frame = window.requestAnimationFrame(scrollLayerDrag);
+    }
+    event.preventDefault();
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    updateLayerDrop();
+  };
+  layerList.onpointerup = event => {
+    const drag = layerDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.active) {
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      updateLayerDrop();
+    }
+    cancelLayerDrag();
+    if (drag.active && drag.inside) moveLayer(drag.id, drag.target);
+  };
+  layerList.onpointercancel = cancelLayerDrag;
+  layerList.onlostpointercapture = event => {
+    if (event.target === layerList) cancelLayerDrag();
+  };
 
   function finishLayerRename(commit = true, restoreFocus = false) {
     if (!layerRename) return;
@@ -399,7 +481,7 @@ function start() {
   }
 
   function setLayersOpen(open) {
-    if (!open) finishLayerRename();
+    if (!open) { cancelLayerDrag(); finishLayerRename(); }
     layersPicker.open = open;
     layersToggle.setAttribute('aria-expanded', String(open));
     if (open) document.querySelector('#layer-add').focus({ preventScroll: true });
@@ -412,7 +494,8 @@ function start() {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      if (layerRename) finishLayerRename(false, true);
+      if (layerDrag) cancelLayerDrag();
+      else if (layerRename) finishLayerRename(false, true);
       else setLayersOpen(false);
     }
   };

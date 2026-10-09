@@ -1,6 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const html = fs.readFileSync(path.join(__dirname, '../../web/index.html'), 'utf8');
+const htmlIds = new Set([...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]));
 
 // A small DOM/canvas double for checking artwork coordinates and UI actions.
 module.exports = function createBoard(scale = 1, storage = new Map()) {
@@ -19,6 +21,9 @@ module.exports = function createBoard(scale = 1, storage = new Map()) {
     contains(item) { return item === this || this.children.some(child => child.contains(item)); }
     append(...children) { this.children.push(...children); }
     replaceChildren() { this.children = []; }
+    setPointerCapture(id) { this.capture = id; }
+    hasPointerCapture(id) { return this.capture === id; }
+    releasePointerCapture() { this.capture = null; }
     scrollIntoView() {}
     setSelectionRange() {}
     select() {}
@@ -66,7 +71,8 @@ module.exports = function createBoard(scale = 1, storage = new Map()) {
     .map(value => Object.assign(new Element(), { value }));
   let selected = tools[0];
   const colors = [Object.assign(new Element(), { value: '#ef4444', checked: true })];
-  document.querySelector = selector => selector === 'input[name="tool"]:checked' ? selected : (nodes[selector] ||= new Element());
+  // Missing IDs must return null, as in the browser, so removed controls fail tests.
+  document.querySelector = selector => selector.startsWith('#') && !htmlIds.has(selector.slice(1)) ? null : selector === 'input[name="tool"]:checked' ? selected : (nodes[selector] ||= new Element());
   document.querySelectorAll = selector => selector === 'input[name="color"]' ? colors : tools;
   document.createElement = tag => tag === 'canvas' ? makeCanvas() : new Element();
   document.querySelector('#shape-options').querySelectorAll = () => tools.slice(4, 7);
@@ -89,6 +95,8 @@ module.exports = function createBoard(scale = 1, storage = new Map()) {
   };
   const window = new Element(); window.devicePixelRatio = scale;
   window.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
+  window.requestAnimationFrame = () => 1;
+  window.cancelAnimationFrame = () => {};
   let resize;
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../web/app.js'), 'utf8'), {
     document, window, ResizeObserver: class { constructor(fn) { resize = fn; } observe() {} }
