@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Drawing Board</title>
   <link rel="icon" href="data:,">
-  <script src="app.js?v=layer-drag-1" defer></script>
+  <script src="app.js?v=png-export-1" defer></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #252525; background: #fff; color-scheme: light; }
@@ -18,6 +18,14 @@
     .history { display: flex; gap: 4px; flex-shrink: 0; }
     .history button { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 8px 10px; font-size: 12px; }
     .history button:hover:enabled { background: #f4f4f4; }
+    .download-picker { position: relative; }
+    .download-picker summary { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 8px 10px; font-size: 12px; list-style: none; }
+    .download-picker summary::-webkit-details-marker { display: none; }
+    .download-picker summary:hover { background: #f4f4f4; }
+    .download-picker summary:focus-visible { outline: 2px solid #252525; outline-offset: -2px; }
+    .download-options { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; width: 210px; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 16px #0002; }
+    .history .download-options button { width: 100%; justify-content: flex-start; }
+    #download-status { margin: 4px 8px; font-size: 12px; }
     button:disabled { color: #bbb; cursor: default; }
     svg { width: 19px; height: 19px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
     main { flex: 1; min-height: 0; min-width: 0; position: relative; z-index: 0; }
@@ -204,6 +212,17 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
       <span class="action-label">Clear All</span>
     </button>
+    <details id="download-picker" class="download-picker">
+      <summary id="download-toggle" aria-label="Download PNG" title="Download PNG">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>
+        <span class="action-label">Download</span>
+      </summary>
+      <div class="download-options">
+        <button id="download-white" type="button">PNG · White background</button>
+        <button id="download-transparent" type="button">PNG · Transparent</button>
+        <p id="download-status" role="status" hidden></p>
+      </div>
+    </details>
     </div>
   </header>
   <main aria-label="Drawing area">

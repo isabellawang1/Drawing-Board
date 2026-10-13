@@ -11,6 +11,11 @@ be placed.
 Click **Shapes** to choose Line, Rectangle, or Circle from the menu above it.
 Undo, Redo, and Clear All are in the top bar.
 
+Click **Download** in the top bar to export a PNG with a **white** or
+**transparent** background. The download includes all visible layers across the
+full board at its original size, regardless of zoom or pan. Pending text and
+strokes are committed before exporting. The file is named `drawing-board.png`.
+
 Use **−** and **+** at the bottom left of the drawing area to zoom from 25% to
 400%. Click the percentage to reset to 100% and return to the top left.
 Zooming keeps the center of your view in place. Use the **hand** button to drag

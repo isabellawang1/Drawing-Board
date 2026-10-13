@@ -66,6 +66,11 @@ function start() {
   const undoButton = document.querySelector('#undo');
   const redoButton = document.querySelector('#redo');
   const clearButton = document.querySelector('#clear');
+  const downloadPicker = document.querySelector('#download-picker');
+  const downloadToggle = document.querySelector('#download-toggle');
+  const downloadWhite = document.querySelector('#download-white');
+  const downloadTransparent = document.querySelector('#download-transparent');
+  const downloadStatus = document.querySelector('#download-status');
   const layersToggle = document.querySelector('#layers-toggle');
   const layersPicker = document.querySelector('#layers-picker');
   const layersPanel = document.querySelector('#layers-panel');
@@ -828,6 +833,61 @@ function start() {
       } else context.drawImage(surface, 0, 0);
     }
   }
+
+  function downloadPNG(transparent) {
+    settleDrawing();
+    const output = document.createElement('canvas');
+    output.width = Math.round(boardWidth);
+    output.height = Math.round(boardHeight);
+    const target = output.getContext('2d');
+    if (!transparent) {
+      target.fillStyle = '#ffffff';
+      target.fillRect(0, 0, output.width, output.height);
+    }
+    // The composite contains visible layers only, independent of zoom and pan.
+    target.drawImage(canvas, 0, 0, output.width, output.height);
+    downloadWhite.disabled = downloadTransparent.disabled = true;
+    downloadStatus.hidden = true;
+    const failed = () => {
+      downloadWhite.disabled = downloadTransparent.disabled = false;
+      downloadStatus.textContent = 'Could not create PNG. Please try again.';
+      downloadStatus.hidden = false;
+      downloadPicker.open = true;
+    };
+    try {
+      output.toBlob(blob => {
+        if (!blob) { failed(); return; }
+        try {
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'drawing-board.png';
+          document.body.append(link);
+          try { link.click(); } finally {
+            link.remove();
+            // Leave time for the browser to begin reading the download.
+            window.setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+          }
+          downloadPicker.open = false;
+          downloadToggle.focus({ preventScroll: true });
+          downloadWhite.disabled = downloadTransparent.disabled = false;
+        } catch (error) { failed(); }
+      }, 'image/png');
+    } catch (error) { failed(); }
+  }
+  downloadWhite.onclick = () => downloadPNG(false);
+  downloadTransparent.onclick = () => downloadPNG(true);
+  document.addEventListener('pointerdown', event => {
+    if (!downloadPicker.contains(event.target)) downloadPicker.open = false;
+  });
+  downloadPicker.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      downloadPicker.open = false;
+      downloadToggle.focus({ preventScroll: true });
+    }
+  });
 
   function drawingPoint(event) {
     const bounds = canvas.getBoundingClientRect();
